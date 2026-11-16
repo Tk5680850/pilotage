@@ -1,0 +1,22 @@
+# dependencies and builds
+node_modules/
+web/node_modules/
+web/dist/
+
+# your data: state, caches, AI summaries, tokens, keys (never commit)
+data/
+.sandbox/
+*.log
+
+# TLS keys and certificates (phone HTTPS)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# local overrides
+.env
+.env.*
+.DS_Store
+.claude/worktrees/

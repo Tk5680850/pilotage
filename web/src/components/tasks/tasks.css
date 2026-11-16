@@ -1,0 +1,1026 @@
+/* Task building blocks (TaskBits.tsx). Tokens from styles.css only: no raw colors. */
+
+/* priority glyph */
+.prio {
+  flex: none;
+  color: var(--text-3);
+  display: inline-block;
+  vertical-align: middle;
+}
+.prio.high {
+  color: var(--text-3);
+}
+.prio.urgent {
+  color: var(--amber);
+}
+
+/* metadata bits */
+.task-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-3);
+}
+.task-ai svg {
+  width: 12px;
+  height: 12px;
+}
+.task-proj {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 220px;
+}
+.task-src-line {
+  display: flex;
+  min-width: 0;
+}
+.task-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.4;
+}
+.task-src > svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--text-4);
+}
+a.task-src:hover {
+  color: var(--text);
+}
+a.task-src:hover .truncate {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-4);
+}
+
+/* status glyph button (row lead) */
+.task-status-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: -3px -3px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--dur-1);
+}
+.task-status-btn:hover {
+  background: var(--hover);
+}
+.task-status-btn:active {
+  background: var(--pressed);
+}
+
+/* AI hint line: one tap to agree with the AI */
+.ai-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  line-height: 1.4;
+  margin-top: 2px;
+  min-width: 0;
+}
+.ai-hint > svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--accent);
+}
+.ai-hint.muted-hint > svg {
+  color: var(--text-3);
+}
+.ai-hint-btn {
+  border: 0;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-1);
+}
+.ai-hint-btn:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.muted-hint .ai-hint-btn {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+/* task row */
+.task-row .lrow-title {
+  gap: 8px;
+}
+.task-row.closed .task-t {
+  color: var(--text-3);
+}
+/* the row overlay is a <button> here (opens the sheet); styles.css makes `.lrow button` relative, so re-assert */
+.lrow > button.lrow-link.task-open {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: auto;
+  height: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.task-quick {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  align-self: center;
+}
+/* list view: quick actions appear on hover (desktop) */
+.task-row .task-quick.hover-only {
+  opacity: 0;
+  transition: opacity var(--dur-1);
+}
+.task-row:hover .task-quick.hover-only,
+.task-row:focus-within .task-quick.hover-only {
+  opacity: 1;
+}
+.task-quick .task-qbtn .sicon {
+  color: var(--text-3);
+}
+.task-quick .task-qbtn:hover .sicon {
+  color: var(--text);
+}
+
+/* undo toast (TaskUndoToast): sits in the app's toast stack; the action is a quiet pill on the inverted toast */
+.toast.task-undo {
+  padding-right: 8px;
+}
+.task-undo-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin: -4px 0;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--bg) 10%, transparent);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-1);
+}
+.task-undo-btn:hover {
+  background: color-mix(in srgb, var(--bg) 18%, transparent);
+}
+.task-undo-btn:active {
+  background: color-mix(in srgb, var(--bg) 26%, transparent);
+}
+.task-undo-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* board card */
+.task-card {
+  gap: 7px;
+  position: relative;
+  outline: none;
+}
+.task-card:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.task-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.task-card-head .t {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.task-card-head .prio {
+  margin-top: 2px;
+}
+.task-card.closed .task-card-head .t {
+  color: var(--text-3);
+}
+.task-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.task-card-meta > .meta {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.task-card-meta .task-proj {
+  max-width: 100%;
+  overflow: hidden;
+}
+.task-card-meta .meta > :first-child {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.task-card-meta .meta > :not(:first-child) {
+  flex: none;
+}
+.task-when {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.task-card.dragging {
+  opacity: 0.4;
+}
+.task-card[draggable='true'] {
+  cursor: grab;
+}
+/* quick actions take the place of the time on hover (same line, no overlap with the title) */
+.task-card-meta {
+  min-height: 26px;
+  margin-bottom: -4px;
+}
+.task-card-actions {
+  display: none;
+  align-items: center;
+  gap: 1px;
+  flex: none;
+  margin-right: -6px;
+}
+.task-card-actions .btn.sm {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 7px;
+  font-size: var(--fs-xs);
+  gap: 5px;
+}
+.task-card-actions .btn.sm.icon {
+  width: 26px;
+  min-width: 26px;
+  padding: 0;
+}
+.task-card-actions .sicon {
+  color: var(--text-3);
+}
+.task-card:hover .task-card-actions,
+.task-card:focus-within .task-card-actions,
+.task-card:focus-visible .task-card-actions,
+.task-card-meta.menu-open .task-card-actions {
+  display: flex;
+}
+.task-card:hover .task-when,
+.task-card:focus-within .task-when,
+.task-card:focus-visible .task-when,
+.task-card-meta.menu-open .task-when {
+  display: none;
+}
+@media (hover: none) {
+  .task-card-actions {
+    display: flex;
+  }
+  .task-when {
+    display: none;
+  }
+}
+
+/* menu: popover on desktop, sheet on phone */
+.menu-pop {
+  position: fixed;
+  z-index: 120;
+  width: 220px;
+  padding: 5px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: pop var(--dur-2) var(--ease);
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-1);
+}
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+.menu-item.danger {
+  color: var(--red);
+}
+.mi-icon {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  flex: none;
+  color: var(--text-3);
+}
+.mi-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.mi-label {
+  flex: 1;
+  min-width: 0;
+}
+.mi-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.mi-check {
+  color: var(--accent-text);
+  flex: none;
+}
+.menu-sheet .menu-sheet-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 10px 14px;
+  gap: 2px;
+  overflow-y: auto;
+}
+.menu-sheet .menu-item {
+  height: 50px;
+  font-size: var(--fs-base);
+  padding: 0 12px;
+  gap: 14px;
+}
+.menu-sheet .mi-hint {
+  font-size: var(--fs-sm);
+}
+
+/* detail sheet */
+.task-sheet-body {
+  gap: 16px;
+}
+.task-sheet .modal-body > * {
+  flex: none;
+}
+.task-title-edit {
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+  padding: 6px 8px;
+  margin: -2px -9px 0;
+  width: calc(100% + 18px);
+  border-radius: var(--r-md);
+  outline: none;
+  transition: border-color var(--dur-1), background var(--dur-1), box-shadow var(--dur-1);
+}
+.task-title-edit:hover {
+  background: var(--hover);
+}
+.task-title-edit:focus {
+  background: var(--field);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.task-props {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+}
+.tp-label {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  font-weight: 500;
+}
+.tp-val {
+  min-width: 0;
+}
+.tp-val .seg button .prio {
+  margin-right: 1px;
+}
+.task-date {
+  height: 32px;
+  min-height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+  width: auto;
+  min-width: 0;
+  max-width: 180px;
+  color-scheme: light dark;
+}
+.tp-val .select {
+  max-width: 320px;
+}
+.task-detail-edit {
+  min-height: 84px;
+  resize: none;
+  overflow: hidden;
+  font-size: var(--fs-sm);
+}
+.task-sheet-src {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.task-del {
+  color: var(--text-3);
+}
+.task-del:hover {
+  color: var(--red);
+  background: var(--danger-soft);
+}
+
+@media (max-width: 860px) {
+  .task-date {
+    height: 44px;
+    min-height: 44px;
+  }
+  .task-status-btn {
+    width: 40px;
+    height: 40px;
+    margin: -10px -10px -10px -12px;
+  }
+  .task-quick {
+    gap: 4px;
+  }
+  .task-quick .qlabel {
+    display: none;
+  }
+  .task-row .lrow-title > .task-t {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .task-row .lrow-title {
+    align-items: flex-start;
+  }
+  .task-row .lrow-title .prio {
+    margin-top: 4px;
+  }
+  .task-row .task-src-line {
+    display: none;
+  }
+  .task-quick .btn.sm {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+  }
+  .task-undo-btn {
+    height: 40px;
+    margin: -9px 0;
+    padding: 0 14px;
+  }
+  .task-props {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .tp-label {
+    margin-top: 6px;
+  }
+  .tp-val .seg {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+  .tp-val .seg button {
+    flex: 1;
+    justify-content: center;
+    padding: 0 6px;
+  }
+  .ai-hint-btn {
+    height: 32px;
+    padding: 0 12px;
+  }
+  .task-title-edit {
+    font-size: var(--fs-md);
+  }
+}
+
+/* two-line menu items (phone "+" create sheet) */
+.menu-item.two-line {
+  height: auto;
+  min-height: 44px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+.mi-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.mi-sub {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: 400;
+}
+.create-sheet .mi-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.create-sheet .mi-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.menu-sheet.create-sheet .menu-item {
+  height: auto;
+  min-height: 62px;
+}
+.menu-sheet.create-sheet .mi-label {
+  font-weight: 550;
+}
+
+/* Today flag (SIMPLIFY §6): a small accent tag, the only tag a task row/card carries */
+.task-today {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 19px;
+  padding: 0 7px 0 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+.task-today svg {
+  width: 11px;
+  height: 11px;
+}
+.task-card-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: -2px;
+}
+.task-today-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+  flex: none;
+}
+
+/* quick add (TaskQuickAdd): one compact line on every screen size */
+.task-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--dur-1), box-shadow var(--dur-1);
+  min-width: 0;
+}
+.task-add:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.task-add-input {
+  flex: 1 1 0;
+  min-width: 96px;
+}
+.task-add-input > .input {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--fs-base);
+  min-height: 32px;
+  height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 30px;
+}
+.task-add-input > .input:hover,
+.task-add-input > .input:focus {
+  border-color: transparent;
+  box-shadow: none;
+}
+.task-add-input > .kbd {
+  position: absolute;
+  right: 6px;
+  pointer-events: none;
+}
+.task-add-chip {
+  position: relative;
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  max-width: 220px;
+  min-width: 0;
+  padding: 0 8px 0 7px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  transition: background var(--dur-1), color var(--dur-1);
+}
+.task-add-chip:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 9%, var(--surface-2));
+}
+.task-add-chip:focus-within {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.task-add-chip > svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--text-3);
+}
+.task-add-chip > .truncate {
+  min-width: 0;
+}
+.task-add-chip-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px; /* no zoom-on-focus on phones */
+  border: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.task-add-btn {
+  flex: none;
+}
+@media (max-width: 860px) {
+  .task-add {
+    padding: 4px;
+    gap: 4px;
+  }
+  .task-add-input > .input {
+    height: 40px;
+    min-height: 40px;
+    padding-left: 32px;
+    padding-right: 6px;
+  }
+  .task-add-chip {
+    height: 40px;
+    max-width: 46%;
+    padding: 0 8px;
+    font-size: var(--fs-sm);
+  }
+  .task-add-btn.btn.sm {
+    padding: 0 12px;
+  }
+}
+
+/* ---------------------------------------------------------------- TasksView (Tasks page + Project › Tasks) */
+.tasks-view {
+  min-width: 0;
+}
+.ph > .tasks-tabs {
+  margin-top: 4px;
+}
+.task-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+}
+.task-col > .board-col {
+  transition: box-shadow var(--dur-1), background var(--dur-1);
+}
+.task-col.over > .board-col {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.task-more {
+  border: 0;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  height: 30px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background var(--dur-1), color var(--dur-1);
+}
+.task-more:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.task-more-row {
+  border-top: 1px solid var(--border);
+  padding: 4px 8px;
+  display: flex;
+}
+.task-more-row .task-more {
+  flex: 1;
+  text-align: left;
+  padding: 0 12px;
+}
+.task-proj-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.task-proj-name {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.task-proj-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--text-4);
+}
+.task-fold > .disclosure-body {
+  padding-left: 0;
+  padding-top: 10px;
+}
+.task-fold p {
+  margin: 0;
+}
+.task-dropped-hint {
+  margin-top: 10px;
+}
+.task-phone-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: -6px;
+}
+
+/* ---------------------------------------------------------------- Suggested (triage) */
+.sg-keys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: -10px;
+}
+.sg-keys .kbd {
+  margin: 0 1px;
+}
+.sg-list {
+  overflow: hidden;
+}
+.sg-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 20px;
+  row-gap: 10px;
+  padding: 14px 16px 14px 20px;
+  border-top: 1px solid var(--border);
+  outline: none;
+  transition: background var(--dur-1);
+}
+.sg-row:first-child {
+  border-top: 0;
+}
+.sg-row.focused,
+.sg-row:focus-visible {
+  background: var(--hover);
+}
+.sg-row.focused::before,
+.sg-row:focus-visible::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.sg-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sg-title {
+  align-self: flex-start;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-base);
+  font-weight: 560;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.sg-title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--text-4);
+}
+.sg-meta {
+  min-width: 0;
+}
+.sg-reason {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+  max-width: 78ch;
+}
+.sg-src-line {
+  display: flex;
+  min-width: 0;
+}
+.sg-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.4;
+}
+.sg-src > svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--text-4);
+}
+a.sg-src:hover {
+  color: var(--text);
+}
+a.sg-src:hover .truncate {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-4);
+}
+.sg-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.sg-chips {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  animation: pop var(--dur-2) var(--ease);
+}
+.sg-chips-label {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: 550;
+  margin-right: 4px;
+}
+.sg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 10px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--dur-1), border-color var(--dur-1);
+}
+.sg-chip:hover {
+  background: var(--hover);
+}
+.sg-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.sg-chip .kbd {
+  height: 18px;
+  min-width: 18px;
+  font-size: var(--fs-2xs);
+}
+.sg-chip.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-3);
+  padding: 0 12px;
+}
+.sg-chip.ghost:hover {
+  color: var(--text);
+}
+@media (max-width: 860px) {
+  .sg-row {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px 16px;
+    row-gap: 12px;
+  }
+  .sg-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .sg-actions .btn {
+    justify-content: center;
+    padding: 0 6px;
+  }
+  /* four actions on one row: words only, so "Not now" and "Dismiss" fit at 360px */
+  .sg-actions .btn > svg {
+    display: none;
+  }
+  .sg-actions .btn.ghost {
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .sg-chips {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 8px;
+  }
+  .sg-chips-label {
+    grid-column: 1 / -1;
+    margin: 2px 4px 0;
+  }
+  .sg-chip {
+    height: 40px;
+    justify-content: center;
+    padding: 0 10px;
+  }
+  .sg-chip.ghost {
+    grid-column: 1 / -1;
+  }
+  .task-more {
+    height: 40px;
+    font-size: var(--fs-sm);
+  }
+}

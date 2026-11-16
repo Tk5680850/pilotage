@@ -1,0 +1,188 @@
+/* Running-session rows and session list rows (components/session). Tokens from styles.css only. */
+.mi {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.sx-harness {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.sx-proj-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 220px;
+}
+.sx-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.live-srow {
+  align-items: center;
+}
+.live-srow .lrow-lead {
+  align-self: flex-start;
+}
+.live-srow .lrow-title .t {
+  flex: 0 1 auto;
+}
+.live-word.st-word-needs-you {
+  color: var(--amber);
+}
+.live-word.st-word-working {
+  color: var(--accent-text);
+}
+.live-word.st-word-idle_live {
+  color: var(--text-3);
+  font-weight: 500;
+}
+.live-srow-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}
+.live-srow-actions .tip {
+  display: inline-flex;
+}
+.live-branch {
+  max-width: 200px;
+}
+.live-nolink {
+  padding: 0 8px;
+}
+.live-stop:hover {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 13%, transparent);
+}
+.launch-row {
+  align-items: center;
+}
+.launch-row .lrow-lead {
+  align-self: flex-start;
+}
+.live-needs-you {
+  border-color: color-mix(in srgb, var(--amber) 40%, var(--border));
+}
+.live-fold {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding: 10px 20px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  cursor: pointer;
+  transition: background var(--dur-1), color var(--dur-1);
+}
+.live-fold:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.sx-launches > summary {
+  gap: 8px;
+}
+.sx-launches > .disclosure-body {
+  padding-top: 10px;
+}
+
+/* session list rows */
+.sx-lrow .lrow-trail {
+  min-width: 44px;
+  justify-content: flex-end;
+}
+.sx-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 200px;
+}
+.sx-branch > svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+@media (max-width: 860px) {
+  .live-srow,
+  .launch-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 12px;
+  }
+  .live-srow > .lrow-body,
+  .launch-row > .lrow-body {
+    flex: 1 1 calc(100% - 40px);
+  }
+  .live-srow-actions {
+    flex: 1 1 100%;
+    padding-left: 32px;
+    gap: 8px;
+  }
+  .live-srow-actions .live-open {
+    flex: 1;
+    height: 44px;
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .live-srow-actions .live-view {
+    height: 44px;
+    min-height: 44px;
+    padding: 0 16px;
+  }
+  .live-nolink {
+    flex: 1;
+    padding: 0;
+  }
+  .live-fold {
+    min-height: 44px;
+  }
+  /* Working / Open rows stay one compact line on the phone: a tap opens the session; only "Needs you" rows carry the
+     full-width "Open in Claude app" button (SIMPLIFY §4). */
+  .live-srow:not(.st-needs-you) {
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  .live-srow:not(.st-needs-you) > .lrow-body {
+    flex: 1 1 auto;
+  }
+  .live-srow:not(.st-needs-you) .live-srow-actions {
+    flex: 0 0 auto;
+    padding-left: 0;
+  }
+  .live-srow:not(.st-needs-you) .live-view,
+  .live-srow:not(.st-needs-you) .live-nolink,
+  .live-srow:not(.st-needs-you) .live-stop {
+    display: none;
+  }
+  .live-srow:not(.st-needs-you) .live-open {
+    flex: 0 0 auto;
+    width: 44px;
+    padding: 0;
+    font-size: 0;
+    justify-content: center;
+  }
+  .live-srow:not(.st-needs-you) .live-open svg {
+    width: 18px;
+    height: 18px;
+  }
+}

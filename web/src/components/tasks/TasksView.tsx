@@ -1,0 +1,585 @@
+// The Tasks UI (SIMPLIFY §6), shared by /tasks and Project › Tasks (same components, same two tabs):
+//   To do      board (To do · Doing · Done, drag between columns) or list; "Today" chip on flagged tasks.
+//   Suggested  the triage list (components/tasks/Suggested.tsx). Never on the board, never in the To do counts.
+// Dropped tasks (dismissed or expired suggestions included) sit in a fold at the bottom, restorable.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Archive, Columns3, List, ListChecks, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useProjects } from '../../api';
+import { tasksDismissOld, tasksRestore, useWork } from '../../api-extra';
+import { Board, BoardColumn, Button, Card, Disclosure, EmptyState, Kbd, LoadingCard, ProjectGlyph, SegmentedControl, Section, StatusIcon, Tabs, Toolbar, ToolbarSpacer, useToast } from '../ui';
+import type { WorkItem, WorkStatus } from '../../types-extra';
+import { plural } from '../../util';
+import { TaskCard, TaskRow, TaskSheet, TaskUndoToast, useProjectIndex } from './TaskBits';
+import { TaskQuickAdd } from './TaskQuickAdd';
+import { SuggestedList } from './Suggested';
+import { BOARD_COLUMNS, friendly, isOldSuggestion, isPlannedToday, isSnoozed, isSuggested, offerUndo, OLD_DAYS, TASK_STATUS, useMedia, usePref, useTaskActions, useTick } from './model';
+import './tasks.css';
+
+export type TasksTabValue = 'todo' | 'suggested';
+type Who = 'all' | 'ai' | 'mine';
+type View = 'board' | 'list';
+const COL_CAP = 12;
+const STATUS_RANK: Record<WorkStatus, number> = { doing: 0, todo: 1, inbox: 2, done: 3, dropped: 4 };
+
+/** The tab lives in the URL: `?tab=suggested` on /tasks, `?tasks=suggested` on a project page (its ?tab= is taken). */
+export function useTasksTab(param = 'tab'): [TasksTabValue, (t: TasksTabValue) => void] {
+  const [params, setParams] = useSearchParams();
+  const tab: TasksTabValue = params.get(param) === 'suggested' ? 'suggested' : 'todo';
+  const set = useCallback(
+    (t: TasksTabValue) =>
+      setParams(
+        (prev) => {
+          const n = new URLSearchParams(prev);
+          if (t === 'suggested') n.set(param, 'suggested');
+          else n.delete(param);
+          return n;
+        },
+        { replace: true },
+      ),
+    [param, setParams],
+  );
+  return [tab, set];
+}
+
+/** Tab counts: To do = To do + Doing (the badge everywhere); Suggested = visible suggestions (snoozed ones excluded). */
+export function taskCounts(items: WorkItem[], now = Date.now()) {
+  let todo = 0;
+  let doing = 0;
+  let suggested = 0;
+  for (const it of items) {
+    if (it.status === 'todo') todo++;
+    else if (it.status === 'doing') doing++;
+    else if (isSuggested(it, now)) suggested++;
+  }
+  return { open: todo + doing, todo, doing, suggested };
+}
+
+/** "To do 7 · Suggested 12" as page tabs (Tasks header) or as a segmented control (inside a project tab). */
+export function TasksTabs({ value, onChange, counts, inline = false }: { value: TasksTabValue; onChange: (t: TasksTabValue) => void; counts?: { open: number; suggested: number }; inline?: boolean }) {
+  if (inline)
+    return (
+      <SegmentedControl
+        value={value}
+        onChange={onChange}
+        label="Tasks view"
+        options={[
+          { value: 'todo', label: <>To do {counts && <span className="num faint">{counts.open}</span>}</>, title: 'Tasks you decided to do' },
+          { value: 'suggested', label: <>Suggested {counts && <span className="num faint">{counts.suggested}</span>}</>, title: 'Suggested by AI from your sessions: keep or dismiss them' },
+        ]}
+      />
+    );
+  return (
+    <Tabs
+      value={value}
+      onChange={onChange}
+      className="tasks-tabs"
+      items={[
+        { value: 'todo', label: 'To do', count: counts?.open },
+        { value: 'suggested', label: 'Suggested', count: counts?.suggested },
+      ]}
+    />
+  );
+}
+
+function sortTodo(list: WorkItem[]) {
+  // today-flagged first, then the server's order (priority, due date, newest)
+  return list.map((it, i) => ({ it, i, t: isPlannedToday(it) ? 0 : 1 })).sort((a, b) => a.t - b.t || a.i - b.i).map((x) => x.it);
+}
+
+function isTyping(t: EventTarget | null) {
+  const el = t as HTMLElement | null;
+  return !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+}
+
+export function TasksView({
+  projectId,
+  tab,
+  onTab,
+  inlineTabs = false,
+  addRef: addRefIn,
+  initialOpenId = null,
+  onSheetClose,
+  initialProject = '',
+  initialWorkspace = '',
+}: {
+  /** Only this project's tasks (Project › Tasks). Hides the project filters and glyphs. */
+  projectId?: string;
+  tab: TasksTabValue;
+  onTab: (t: TasksTabValue) => void;
+  /** Render the To do / Suggested switch here (project page). The Tasks page puts it in its header. */
+  inlineTabs?: boolean;
+  addRef?: React.RefObject<HTMLInputElement>;
+  initialOpenId?: string | null;
+  onSheetClose?: () => void;
+  initialProject?: string;
+  initialWorkspace?: string;
+}) {
+  useTick();
+  const scoped = !!projectId;
+  const { data, error, isLoading, refetch } = useWork(scoped ? { project: projectId } : {});
+  const { data: projects } = useProjects();
+  const pindex = useProjectIndex();
+  const phone = useMedia();
+  const toast = useToast();
+  const { setStatus } = useTaskActions();
+  const [view, setView] = usePref<View>(scoped ? 'pilotage.project.tasks.view' : 'pilotage.tasks.view', 'board');
+  const [who, setWho] = usePref<Who>('pilotage.tasks.who', 'all');
+  const [q, setQ] = useState('');
+  const [proj, setProj] = useState(initialProject);
+  const [ws, setWs] = useState(initialWorkspace);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId);
+  const [showFilters, setShowFilters] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [over, setOver] = useState<WorkStatus | null>(null);
+  const [dismissingOld, setDismissingOld] = useState(false);
+  const ownAddRef = useRef<HTMLInputElement>(null);
+  const addRef = addRefIn || ownAddRef;
+  const searchRef = useRef<HTMLInputElement>(null);
+  useEffect(() => setOpenId(initialOpenId), [initialOpenId]);
+  useEffect(() => setProj(initialProject), [initialProject]);
+
+  // keyboard (desktop, To do tab): N = new task, / = search
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target) || document.querySelector('.overlay')) return;
+      if ((e.key === 'n' || e.key === 'N') && tab === 'todo') {
+        e.preventDefault();
+        addRef.current?.focus();
+      } else if (e.key === '/' && !scoped) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tab, scoped, addRef]);
+
+  const items = data?.items || [];
+  const now = Date.now();
+  const counts = taskCounts(items, now);
+  const wsNames = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of projects || []) m.set(p.workspace, p.workspaceName);
+    return m;
+  }, [projects]);
+  const projOptions = useMemo(() => {
+    const m = new Map<string, { id: string; name: string; workspaceName: string }>();
+    for (const it of items) if (!m.has(it.projectId)) m.set(it.projectId, { id: it.projectId, name: it.projectName, workspaceName: (it.workspace && wsNames.get(it.workspace)) || it.workspace || 'Other' });
+    return [...m.values()].sort((a, b) => a.workspaceName.localeCompare(b.workspaceName) || a.name.localeCompare(b.name));
+  }, [items, wsNames]);
+  const wsOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const it of items) if (it.workspace) m.set(it.workspace, (m.get(it.workspace) || 0) + 1);
+    return [...m.entries()].map(([key, n]) => ({ key, name: wsNames.get(key) || key, n })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items, wsNames]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return items.filter((it) => {
+      if (proj && it.projectId !== proj) return false;
+      if (ws && it.workspace !== ws) return false;
+      if (tab === 'todo' && who === 'ai' && !it.ai) return false;
+      if (tab === 'todo' && who === 'mine' && it.ai) return false;
+      if (needle && !`${it.title} ${it.detail} ${it.projectName}`.toLowerCase().includes(needle)) return false;
+      return true;
+    });
+  }, [items, proj, ws, who, q, tab]);
+
+  const byStatus = useMemo(() => {
+    const m: Record<WorkStatus, WorkItem[]> = { inbox: [], todo: [], doing: [], done: [], dropped: [] };
+    for (const it of filtered) m[it.status].push(it);
+    m.todo = sortTodo(m.todo);
+    m.doing = sortTodo(m.doing);
+    m.done.sort((a, b) => (b.doneAt || b.updatedAt) - (a.doneAt || a.updatedAt));
+    m.dropped.sort((a, b) => b.updatedAt - a.updatedAt);
+    return m;
+  }, [filtered]);
+  const suggestions = byStatus.inbox.filter((it) => !isSnoozed(it, now));
+  const snoozed = byStatus.inbox.filter((it) => isSnoozed(it, now));
+  const oldOnes = scoped ? [] : items.filter((it) => isOldSuggestion(it, now));
+
+  const filtersOn = !!(proj || ws || (tab === 'todo' && who !== 'all') || q.trim());
+  const nFilters = [proj, ws, tab === 'todo' && who !== 'all' ? who : ''].filter(Boolean).length;
+  const clearFilters = () => {
+    setProj('');
+    setWs('');
+    setWho('all');
+    setQ('');
+  };
+  const openItem = openId ? items.find((x) => x.id === openId) : undefined;
+  const closeSheet = useCallback(() => {
+    setOpenId(null);
+    onSheetClose?.();
+  }, [onSheetClose]);
+
+  const dismissOld = async () => {
+    if (dismissingOld) return;
+    setDismissingOld(true);
+    try {
+      const r = await tasksDismissOld(OLD_DAYS);
+      refetch();
+      if (!r.ids.length) toast(`Nothing older than ${OLD_DAYS} days`);
+      else {
+        offerUndo(`Dismissed ${plural(r.ids.length, 'suggestion')} older than ${OLD_DAYS} days`, async () => {
+          try {
+            const back = await tasksRestore(r.ids);
+            toast(`${plural(back.restored, 'suggestion')} back in Suggested`);
+          } catch (e) {
+            toast(friendly(e), true);
+          } finally {
+            refetch();
+          }
+        });
+      }
+    } catch (e) {
+      toast(friendly(e), true);
+    } finally {
+      setDismissingOld(false);
+    }
+  };
+
+  const drop = (s: WorkStatus) => (e: React.DragEvent) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain') || dragId;
+    setOver(null);
+    setDragId(null);
+    const it = items.find((x) => x.id === id);
+    if (it && it.status !== s) setStatus(it.id, s);
+  };
+  const more = (key: string, total: number, cap: number) =>
+    total > cap ? (
+      <button type="button" className="task-more" onClick={() => setExpanded((x) => ({ ...x, [key]: !x[key] }))}>
+        {expanded[key] ? 'Show fewer' : `Show ${total - cap} more`}
+      </button>
+    ) : null;
+  const capped = (key: string, list: WorkItem[], cap: number) => (expanded[key] ? list : list.slice(0, cap));
+  const showProject = !scoped;
+
+  // ---------- To do content
+  const todoTotal = byStatus.todo.length + byStatus.doing.length + byStatus.done.length;
+  const statusSections = (
+    <div className="stack-xl task-groups">
+      {(['doing', 'todo', 'done'] as WorkStatus[]).map((s) => {
+        const list = byStatus[s];
+        if (!list.length) return null;
+        const cap = s === 'done' ? 3 : 10;
+        return (
+          <Section key={s} title={<><StatusIcon status={TASK_STATUS[s].glyph} />{TASK_STATUS[s].label}</>} count={list.length}>
+            <Card flush>
+              {capped(s, list, cap).map((it) => (
+                <TaskRow key={it.id} it={it} project={pindex.get(it.projectId)} showProject={showProject} quick={!phone} hoverQuick onOpen={() => setOpenId(it.id)} />
+              ))}
+              {list.length > cap && <div className="task-more-row">{more(s, list.length, cap)}</div>}
+            </Card>
+          </Section>
+        );
+      })}
+    </div>
+  );
+
+  let todoContent: React.ReactNode;
+  if (!todoTotal && !filtersOn)
+    todoContent = (
+      <Card>
+        <EmptyState
+          icon={<ListChecks />}
+          title="Nothing to do yet"
+          body={counts.suggested ? 'Keep tasks from Suggested, or add your own above.' : 'Add a task above. Pilotage also suggests tasks from your sessions; they wait in Suggested until you keep them.'}
+          action={
+            counts.suggested ? (
+              <Button size="sm" onClick={() => onTab('suggested')}>
+                Review {plural(counts.suggested, 'suggestion')}
+              </Button>
+            ) : undefined
+          }
+        />
+      </Card>
+    );
+  else if (!todoTotal)
+    todoContent = (
+      <Card>
+        <EmptyState compact icon={<Search />} title="No tasks match these filters" action={<Button size="sm" variant="ghost" icon={<X />} onClick={clearFilters}>Clear filters</Button>} />
+      </Card>
+    );
+  else if (view === 'board' && !phone)
+    todoContent = (
+      <Board>
+        {BOARD_COLUMNS.map((s) => {
+          const list = byStatus[s];
+          return (
+            <div
+              key={s}
+              className={`task-col${over === s && dragId ? ' over' : ''}`}
+              onDragOver={(e) => {
+                if (!dragId) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (over !== s) setOver(s);
+              }}
+              onDragLeave={(e) => {
+                if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setOver((o) => (o === s ? null : o));
+              }}
+              onDrop={drop(s)}
+            >
+              <BoardColumn title={TASK_STATUS[s].label} status={TASK_STATUS[s].glyph} count={list.length} empty={dragId ? 'Drop here' : s === 'doing' ? 'Drag a task here, or start a session from one' : 'Nothing here'}>
+                {capped(s, list, COL_CAP).map((it) => (
+                  <TaskCard
+                    key={it.id}
+                    it={it}
+                    project={pindex.get(it.projectId)}
+                    showProject={showProject}
+                    onOpen={() => setOpenId(it.id)}
+                    dragging={dragId === it.id}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', it.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      setDragId(it.id);
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setOver(null);
+                    }}
+                  />
+                ))}
+                {more(s, list.length, COL_CAP)}
+              </BoardColumn>
+            </div>
+          );
+        })}
+      </Board>
+    );
+  else if (view === 'board' || scoped) todoContent = statusSections;
+  else {
+    // list grouped by project
+    const groups = new Map<string, WorkItem[]>();
+    for (const it of filtered) {
+      if (it.status === 'dropped' || it.status === 'inbox') continue;
+      const g = groups.get(it.projectId) || [];
+      g.push(it);
+      groups.set(it.projectId, g);
+    }
+    const ordered = [...groups.entries()]
+      .map(([id, list]) => ({ id, list: list.sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || Number(isPlannedToday(b)) - Number(isPlannedToday(a)) || b.priority - a.priority || b.sourceAt - a.sourceAt) }))
+      .sort((a, b) => {
+        const score = (l: WorkItem[]) => l.filter((x) => x.status === 'doing').length * 100 + l.filter((x) => x.status === 'todo').length * 10;
+        return score(b.list) - score(a.list) || a.list[0].projectName.localeCompare(b.list[0].projectName);
+      });
+    todoContent = (
+      <div className="stack-xl task-groups">
+        {ordered.map(({ id, list }) => {
+          const first = list[0];
+          const p = pindex.get(id);
+          const openN = list.filter((x) => x.status !== 'done').length;
+          const cap = 8;
+          return (
+            <section key={id} className="section">
+              <div className="task-proj-head">
+                <ProjectGlyph name={first.projectName} ws={first.workspace} color={p?.color} size={22} />
+                {p ? (
+                  <Link to={`/projects/${id}`} className="task-proj-name">
+                    {first.projectName}
+                  </Link>
+                ) : (
+                  <span className="task-proj-name">{first.projectName}</span>
+                )}
+                <span className="faint small num">{openN ? `${openN} open` : 'all done'}</span>
+              </div>
+              <Card flush>
+                {capped(`p:${id}`, list, cap).map((it) => (
+                  <TaskRow key={it.id} it={it} project={p} showProject={false} quick={!phone} hoverQuick onOpen={() => setOpenId(it.id)} />
+                ))}
+                {list.length > cap && <div className="task-more-row">{more(`p:${id}`, list.length, cap)}</div>}
+              </Card>
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // ---------- toolbar
+  const filterControls = scoped ? null : (
+    <>
+      <select className="select task-filter" value={proj} onChange={(e) => setProj(e.target.value)} aria-label="Filter by project">
+        <option value="">All projects</option>
+        {projOptions.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+      {wsOptions.length > 1 && (
+        <select className="select task-filter" value={ws} onChange={(e) => setWs(e.target.value)} aria-label="Filter by workspace">
+          <option value="">All workspaces</option>
+          {wsOptions.map((w) => (
+            <option key={w.key} value={w.key}>
+              {w.name}
+            </option>
+          ))}
+        </select>
+      )}
+      {tab === 'todo' && (
+        <SegmentedControl
+          size="sm"
+          label="Who created it"
+          value={who}
+          onChange={setWho}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'ai', label: 'From AI', title: 'Suggested by Pilotage and kept by you' },
+            { value: 'mine', label: 'Mine', title: 'Tasks you added yourself' },
+          ]}
+        />
+      )}
+      {phone && tab === 'todo' && (
+        <SegmentedControl
+          block
+          label="Group by"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'board', label: 'By status' },
+            { value: 'list', label: 'By project' },
+          ]}
+        />
+      )}
+    </>
+  );
+  const viewToggle =
+    !phone && tab === 'todo' ? (
+      <SegmentedControl
+        size="sm"
+        label="View"
+        value={view}
+        onChange={setView}
+        options={[
+          { value: 'board', label: <><Columns3 />Board</>, title: 'Columns by status (drag cards between them)' },
+          { value: 'list', label: <><List />List</>, title: scoped ? 'One list by status' : 'Grouped by project' },
+        ]}
+      />
+    ) : null;
+  const dismissOldBtn =
+    tab === 'suggested' && oldOnes.length > 0 ? (
+      <Button size="sm" variant="ghost" icon={<Archive />} loading={dismissingOld} onClick={dismissOld} title={`Dismiss the ${plural(oldOnes.length, 'suggestion')} nobody touched for ${OLD_DAYS} days (you can undo)`}>
+        Dismiss all older than {OLD_DAYS} days <span className="num faint">{oldOnes.length}</span>
+      </Button>
+    ) : null;
+
+  const toolbar = scoped ? (
+    inlineTabs || viewToggle || dismissOldBtn ? (
+      <Toolbar className="task-toolbar">
+        {inlineTabs && <TasksTabs inline value={tab} onChange={onTab} counts={counts} />}
+        <ToolbarSpacer />
+        {viewToggle}
+      </Toolbar>
+    ) : null
+  ) : (
+    <Toolbar className="task-toolbar">
+      <div className="input-wrap task-search">
+        <Search />
+        <input
+          ref={searchRef}
+          className="input"
+          placeholder={tab === 'suggested' ? 'Search suggestions…' : 'Search tasks…'}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && (setQ(''), (e.target as HTMLInputElement).blur())}
+          aria-label="Search tasks"
+          type="search"
+        />
+        {!phone && !q && <Kbd>/</Kbd>}
+      </div>
+      {phone ? (
+        <Button variant={nFilters ? 'subtle' : 'secondary'} icon={<SlidersHorizontal />} onClick={() => setShowFilters((x) => !x)} aria-expanded={showFilters} className="task-filter-toggle">
+          {nFilters ? `Filters · ${nFilters}` : 'Filters'}
+        </Button>
+      ) : (
+        filterControls
+      )}
+      {!phone && <ToolbarSpacer />}
+      {!phone && filtersOn && (
+        <Button size="sm" variant="ghost" icon={<X />} onClick={clearFilters}>
+          Clear
+        </Button>
+      )}
+      {viewToggle}
+      {!phone && dismissOldBtn}
+    </Toolbar>
+  );
+
+  let body: React.ReactNode;
+  if (isLoading) body = <LoadingCard lines={6} />;
+  else if (error)
+    body = (
+      <Card>
+        <EmptyState icon={<ListChecks />} title="Tasks didn’t load" body={friendly(error)} action={<Button size="sm" onClick={() => refetch()}>Try again</Button>} />
+      </Card>
+    );
+  else if (tab === 'suggested')
+    body = (
+      <SuggestedList
+        items={suggestions}
+        snoozed={snoozed}
+        showProject={showProject}
+        active={tab === 'suggested' && !openItem}
+        onOpen={setOpenId}
+        filtered={filtersOn}
+        emptyAction={filtersOn ? <Button size="sm" variant="ghost" icon={<X />} onClick={clearFilters}>Clear filters</Button> : undefined}
+      />
+    );
+  else body = todoContent;
+
+  const dropped = byStatus.dropped;
+  return (
+    <div className="tasks-view stack-lg">
+      {scoped && toolbar}
+      {tab === 'todo' && <TaskQuickAdd projectId={projectId} defaultProject={proj} inputRef={addRef} />}
+      {!scoped && toolbar}
+      {phone && showFilters && !scoped && (
+        <div className="task-filter-panel">
+          {filterControls}
+          {filtersOn && (
+            <Button size="sm" variant="ghost" icon={<X />} onClick={clearFilters}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+      )}
+      {phone && dismissOldBtn && <div className="task-phone-actions">{dismissOldBtn}</div>}
+
+      {body}
+
+      {!isLoading && dropped.length > 0 && (
+        <Disclosure summary={<>{plural(dropped.length, 'dropped task')} <span className="faint">in the last 14 days</span></>} className="task-fold">
+          <Card flush>
+            {capped('dropped', dropped, 8).map((it) => (
+              <TaskRow key={it.id} it={it} project={pindex.get(it.projectId)} showProject={showProject} onOpen={() => setOpenId(it.id)} />
+            ))}
+            {dropped.length > 8 && <div className="task-more-row">{more('dropped', dropped.length, 8)}</div>}
+          </Card>
+          <div className="hint task-dropped-hint">Dismissed and expired suggestions land here too. Open one and use Restore to bring it back. Dropped tasks disappear after 14 days.</div>
+        </Disclosure>
+      )}
+
+      {tab === 'suggested' && !isLoading && !scoped && (
+        <Disclosure summary="Where suggestions come from" className="task-fold">
+          <div className="stack small muted readable">
+            <p>After each session is summarized, Pilotage turns its open next step into a suggestion, and each project summary adds its top next steps. Near-duplicates are merged.</p>
+            <p>
+              Suggestions wait here until you keep or dismiss them; nobody else sees them. Untouched ones are dropped after {OLD_DAYS} days (you can restore them). Once you keep a task it’s yours: the AI only adds a hint like “Looks done”.{' '}
+              <Link to="/guide" className="link">
+                How Pilotage works
+              </Link>
+            </p>
+          </div>
+        </Disclosure>
+      )}
+
+      {openItem && <TaskSheet key={openItem.id} it={openItem} onClose={closeSheet} />}
+      <TaskUndoToast />
+    </div>
+  );
+}
+

@@ -1,0 +1,256 @@
+#!/usr/bin/env bash
+# pilotage — control the Pilotage dashboard (serves http://localhost:4747; WSL2 + Windows gets the full feature set).
+#
+#   pilotage start | stop | restart | status | open | pair | phone | logs | build | run | rotate-key
+#   pilotage projects [filter] | live | new <project> [--bg] [--model m] [--name n] ["first prompt"]
+#   pilotage install    (`pilotage` on PATH; on WSL also autostart at Windows login + Desktop shortcut)
+#   pilotage uninstall  (removes all of that; keeps data/ unless --purge)
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+DATA="${PILOTAGE_DATA:-$ROOT/data}"
+PORT="${PILOTAGE_PORT:-4747}"
+LOG="$DATA/logs/server.log"
+PIDFILE="$DATA/pilotage.pid"
+STOPFLAG="$DATA/STOPPED"
+DISTRO="${WSL_DISTRO_NAME:-Ubuntu}"
+
+# WSL2 + Windows: Windows Terminal launches, the phone forwarder, autostart and the Desktop shortcut.
+# Plain Linux / macOS: everything else. PILOTAGE_WSL=0|1 overrides the detection (same as the server).
+IS_WSL=0
+if [ "${PILOTAGE_WSL:-}" = 1 ]; then IS_WSL=1
+elif [ "${PILOTAGE_WSL:-}" != 0 ] && grep -qi microsoft /proc/version 2>/dev/null; then IS_WSL=1; fi
+
+# Node.js 22+: $PILOTAGE_NODE, then nvm installs (newest first), then node on PATH.
+NODE=""
+for n in "${PILOTAGE_NODE:-}" $(ls -d "$HOME"/.nvm/versions/node/v*/bin/node 2>/dev/null | sort -V -r) "$(command -v node 2>/dev/null)"; do
+  if [ -n "$n" ] && [ -x "$n" ]; then
+    major="$("$n" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+    if [ "$major" -ge 22 ] 2>/dev/null; then NODE="$n"; break; fi
+  fi
+done
+
+WIN_HOME=""
+[ "$IS_WSL" = 1 ] && WIN_HOME="$(cd "$ROOT" && "${NODE:-node}" -e "import('./server/config.js').then(c=>console.log(c.WIN_HOME||''))" 2>/dev/null)"
+STARTUP_DIR="$WIN_HOME/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/Startup"
+STARTUP_VBS="$STARTUP_DIR/Pilotage.vbs"
+DESKTOP_URL="$WIN_HOME/Desktop/Pilotage.url"
+DESKTOP_LNK="$WIN_HOME/Desktop/Pilotage.lnk"
+WIN_DIR="$WIN_HOME/AppData/Local/Pilotage"
+
+c_green=$'\e[32m'; c_red=$'\e[31m'; c_dim=$'\e[2m'; c_bold=$'\e[1m'; c_off=$'\e[0m'
+say() { printf '%s\n' "$*"; }
+
+need_node() { [ -n "$NODE" ] || { say "${c_red}Node.js 22+ not found (install it with nvm, or set PILOTAGE_NODE=/path/to/node).${c_off}"; exit 1; }; }
+need_wsl() { [ "$IS_WSL" = 1 ] || { say "$1 needs WSL2 + Windows. Not available on this system."; exit 1; }; }
+
+healthy() { curl -fsS -m 2 "http://127.0.0.1:$PORT/healthz" 2>/dev/null | grep -q pilotage; }
+
+server_pid() { [ -f "$PIDFILE" ] && cat "$PIDFILE" 2>/dev/null; }
+
+desktop_key() {
+  "$NODE" -e 'try{const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(s.desktopKey||"")}catch{}' "$DATA/secrets.json"
+}
+
+rotate_log() {
+  mkdir -p "$DATA/logs"
+  if [ -f "$LOG" ] && [ "$(wc -c <"$LOG" 2>/dev/null || echo 0)" -gt 5000000 ]; then mv -f "$LOG" "$LOG.1"; fi
+}
+
+cmd_start() {
+  need_node
+  rm -f "$STOPFLAG"
+  if healthy; then say "Pilotage is already running → http://localhost:$PORT"; return 0; fi
+  if [ ! -f "$ROOT/web/dist/index.html" ]; then cmd_build || return 1; fi
+  rotate_log
+  if command -v setsid >/dev/null 2>&1; then
+    ( cd "$ROOT" && exec setsid -f "$NODE" "$ROOT/server/index.js" >>"$LOG" 2>&1 < /dev/null )
+  else # macOS: no setsid
+    ( cd "$ROOT" && nohup "$NODE" "$ROOT/server/index.js" >>"$LOG" 2>&1 < /dev/null & )
+  fi
+  for _ in $(seq 1 40); do healthy && break; sleep 0.25; done
+  if healthy; then say "${c_green}Pilotage started${c_off} → http://localhost:$PORT  ${c_dim}(pilotage open)${c_off}"; else say "${c_red}Pilotage did not start.${c_off} See: pilotage logs"; tail -20 "$LOG"; return 1; fi
+}
+
+cmd_stop() {
+  touch "$STOPFLAG" 2>/dev/null || true
+  local pid; pid="$(server_pid)"
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    kill "$pid" 2>/dev/null
+    for _ in $(seq 1 20); do kill -0 "$pid" 2>/dev/null || break; sleep 0.25; done
+    say "Pilotage stopped."
+  else
+    say "Pilotage is not running."
+  fi
+}
+
+# Foreground supervisor used by the Windows Startup entry. It keeps the hidden
+# wsl.exe alive (so WSL doesn't shut down) and restarts the server if it crashes.
+cmd_run() {
+  need_node
+  mkdir -p "$DATA/logs"
+  exec 9>"$DATA/run.lock"
+  if command -v flock >/dev/null 2>&1 && ! flock -n 9; then say "A Pilotage supervisor is already running."; exit 0; fi
+  rm -f "$STOPFLAG"
+  local fails=0
+  while true; do
+    if [ -f "$STOPFLAG" ] || healthy; then sleep 20; continue; fi
+    rotate_log
+    echo "$(date -Is) [supervisor] starting server" >>"$LOG"
+    local t0; t0=$(date +%s)
+    ( cd "$ROOT" && "$NODE" "$ROOT/server/index.js" >>"$LOG" 2>&1 < /dev/null )
+    if [ $(( $(date +%s) - t0 )) -lt 30 ]; then fails=$((fails + 1)); else fails=0; fi
+    sleep $(( fails > 5 ? 60 : 5 ))
+  done
+}
+
+cmd_status() {
+  if healthy; then
+    say "${c_green}●${c_off} Pilotage running (pid $(server_pid)) → http://localhost:$PORT"
+  else
+    say "${c_red}●${c_off} Pilotage is not running  ${c_dim}(pilotage start)${c_off}"
+  fi
+  if [ "$IS_WSL" != 1 ]; then
+    say "${c_dim}● Phone forwarder, firewall rule and autostart: WSL2 + Windows only${c_off}"
+    return 0
+  fi
+  local hb="$WIN_DIR/forwarder.json"
+  if [ -f "$hb" ]; then
+    "$NODE" -e '
+      const h=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+      const ok=Date.now()-h.at<90000;
+      console.log((ok?"\x1b[32m●\x1b[0m":"\x1b[31m●\x1b[0m")+" Phone forwarder "+(ok?"running":"not running")+" (Windows, port "+h.listenPort+(ok?", pid "+h.pid:"")+")");' "$hb"
+  else
+    say "${c_dim}● Phone forwarder not installed yet (starts with the server)${c_off}"
+  fi
+  if /mnt/c/Windows/System32/netsh.exe advfirewall firewall show rule name="Pilotage phone access" >/dev/null 2>&1; then
+    say "${c_green}●${c_off} Firewall allows phones on Wi-Fi / NetBird"
+  else
+    say "${c_red}●${c_off} Phone access not enabled yet  ${c_dim}(pilotage phone — one admin prompt)${c_off}"
+  fi
+  [ -f "$STARTUP_VBS" ] && say "${c_green}●${c_off} Starts automatically at Windows login" || say "${c_dim}● Autostart not installed (pilotage install)${c_off}"
+}
+
+cmd_open() {
+  need_node
+  healthy || cmd_start >/dev/null || return 1
+  local url; url="$(cd "$ROOT" && "$NODE" "$ROOT/server/cli.js" login-url)" || return 1
+  if [ "$IS_WSL" != 1 ]; then
+    local opener=xdg-open; [ "$(uname -s)" = Darwin ] && opener=open
+    if command -v "$opener" >/dev/null 2>&1 && "$opener" "$url" >/dev/null 2>&1; then say "Opened Pilotage in your browser."
+    else say "Open this one-time login link in a browser on this computer (valid a few minutes):"; say "  $url"; fi
+    return 0
+  fi
+  # Hand the link to the default browser. explorer.exe is not reliable for URLs (on some PCs it opens Documents).
+  ( cd /mnt/c && /mnt/c/Windows/System32/rundll32.exe url.dll,FileProtocolHandler "$url" ) >/dev/null 2>&1 \
+    || ( cd /mnt/c && /mnt/c/Windows/System32/cmd.exe /c start "" "$url" ) >/dev/null 2>&1 || true
+  say "Opened Pilotage in your Windows browser."
+}
+
+cmd_pair() {
+  need_node
+  healthy || cmd_start >/dev/null || return 1
+  ( cd "$ROOT" && "$NODE" "$ROOT/server/cli.js" pair )
+}
+
+cmd_phone() {
+  need_node
+  healthy || cmd_start >/dev/null || return 1
+  ( cd "$ROOT" && "$NODE" "$ROOT/server/cli.js" phone )
+}
+
+cmd_logs() { tail -n 80 -f "$LOG"; }
+
+cmd_build() {
+  need_node
+  say "Building the web app…"
+  ( cd "$ROOT/web" && PATH="$(dirname "$NODE"):$PATH" npm run build --silent ) || { say "${c_red}Build failed${c_off}"; return 1; }
+}
+
+cmd_install() {
+  need_node
+  mkdir -p "$HOME/.local/bin"
+  ln -sfn "$ROOT/bin/pilotage" "$HOME/.local/bin/pilotage"
+  say "• Command:   pilotage  (linked in ~/.local/bin)"
+  if [ "$IS_WSL" != 1 ]; then
+    say "• Not on WSL2 + Windows, so these are skipped:"
+    say "    - autostart at login (start it from your own startup: e.g. a systemd user unit or launchd job running \"$ROOT/bin/pilotage run\")"
+    say "    - the Desktop shortcut (use: pilotage open)"
+    say "    - the Windows phone forwarder and its firewall rule (see docs/PHONE.md)"
+    say "    - Windows Terminal launches (sessions started from Pilotage run in the background: claude --bg)"
+    cmd_start
+    return
+  fi
+  [ -n "$WIN_HOME" ] || { say "Windows profile not found (expected /mnt/c/Users/<you>; set PILOTAGE_WIN_HOME)."; exit 1; }
+  mkdir -p "$WIN_DIR"
+  cp -f "$ROOT/windows/forwarder.js" "$WIN_DIR/forwarder.js"
+  [ -f "$ROOT/windows/pilotage.ico" ] && cp -f "$ROOT/windows/pilotage.ico" "$WIN_DIR/pilotage.ico"
+  local winroot; winroot="$(wslpath -w "$ROOT")"
+  cat >"$STARTUP_VBS" <<VBS
+' Pilotage: starts the local dashboard (in WSL) at Windows login, hidden.
+' Delete this file, or run "pilotage uninstall" in WSL, to turn it off.
+Set sh = CreateObject("WScript.Shell")
+sh.Run "wsl.exe -d $DISTRO --cd ~ -- bash -lc ""$ROOT/bin/pilotage run""", 0, False
+VBS
+  sed -i 's/$/\r/' "$STARTUP_VBS"
+  say "• Autostart: $(wslpath -w "$STARTUP_VBS")"
+  cat >"$WIN_DIR/open.vbs" <<VBS
+' Pilotage: opens the dashboard in your browser with a one-time login (no key stored here).
+Set sh = CreateObject("WScript.Shell")
+sh.Run "wsl.exe -d $DISTRO --cd ~ -- bash -lc ""$ROOT/bin/pilotage open""", 0, False
+VBS
+  sed -i 's/$/\r/' "$WIN_DIR/open.vbs"
+  rm -f "$WIN_HOME/Desktop/Pilotage.url"
+  local lnk vbs ico
+  lnk="$(wslpath -w "$WIN_HOME/Desktop")\\Pilotage.lnk"; vbs="$(wslpath -w "$WIN_DIR/open.vbs")"; ico="$(wslpath -w "$WIN_DIR/pilotage.ico")"
+  /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -NonInteractive -Command \
+    "\$s=(New-Object -ComObject WScript.Shell).CreateShortcut('$lnk'); \$s.TargetPath='C:\\Windows\\System32\\wscript.exe'; \$s.Arguments='\"$vbs\"'; \$s.IconLocation='$ico,0'; \$s.Description='Pilotage'; \$s.Save()" >/dev/null 2>&1 \
+    && say "• Shortcut:  Desktop\\Pilotage (opens with a one-time login)" || say "• Shortcut could not be created (use: pilotage open)"
+  cmd_start
+}
+
+cmd_uninstall() {
+  [ -L "$HOME/.local/bin/pilotage" ] && rm -f "$HOME/.local/bin/pilotage"
+  if [ "$IS_WSL" != 1 ] || [ -z "$WIN_HOME" ]; then
+    cmd_stop
+    say "Removed the pilotage command."
+    if [ "${1:-}" = "--purge" ]; then rm -rf "$DATA"; say "Deleted $DATA."; else say "Your Pilotage data is kept in $DATA (delete with: pilotage uninstall --purge)."; fi
+    return
+  fi
+  rm -f "$STARTUP_VBS" "$DESKTOP_URL" "$DESKTOP_LNK"
+  if [ -f "$WIN_DIR/forwarder.json" ]; then
+    local fpid; fpid="$("$NODE" -e 'try{console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).pid)}catch{}' "$WIN_DIR/forwarder.json")"
+    [ -n "$fpid" ] && /mnt/c/Windows/System32/taskkill.exe /PID "$fpid" /F >/dev/null 2>&1
+  fi
+  cmd_stop
+  sleep 1
+  rm -rf "$WIN_DIR"
+  if /mnt/c/Windows/System32/netsh.exe advfirewall firewall show rule name="Pilotage phone access" >/dev/null 2>&1; then
+    say "Removing the firewall rule (a Windows admin prompt opens)…"
+    /mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command "Start-Process -Verb RunAs -FilePath netsh.exe -ArgumentList 'advfirewall','firewall','delete','rule','name=\"Pilotage phone access\"'" >/dev/null 2>&1 || say "Could not remove it; run as admin: netsh advfirewall firewall delete rule name=\"Pilotage phone access\""
+  fi
+  say "Removed autostart, Desktop shortcut, phone forwarder and the pilotage command."
+  if [ "${1:-}" = "--purge" ]; then rm -rf "$DATA"; say "Deleted $DATA."; else say "Your Pilotage data is kept in $DATA (delete with: pilotage uninstall --purge)."; fi
+}
+
+case "${1:-status}" in
+  start) cmd_start ;;
+  stop) cmd_stop ;;
+  restart) cmd_stop >/dev/null; rm -f "$STOPFLAG"; sleep 0.5; cmd_start ;;
+  status) cmd_status ;;
+  open) cmd_open ;;
+  pair) cmd_pair ;;
+  phone) cmd_phone ;;
+  rotate-key) need_node; ( cd "$ROOT" && "$NODE" "$ROOT/server/cli.js" rotate-key ) ;;
+  projects|live|new)
+    need_node
+    healthy || cmd_start >/dev/null || exit 1
+    ( cd "$ROOT" && "$NODE" "$ROOT/server/cli.js" "$@" ) ;;
+  logs) cmd_logs ;;
+  build) cmd_build ;;
+  run) cmd_run ;;
+  install) cmd_install ;;
+  uninstall) shift; cmd_uninstall "${1:-}" ;;
+  -h|--help|help) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) say "Unknown command: $1"; sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+esac

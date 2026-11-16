@@ -1,0 +1,81 @@
+/* Tasks page + TasksView (components/tasks). Tokens from styles.css only. */
+.tasks-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.tasks-page > .ph {
+  margin-bottom: -4px;
+}
+
+/* toolbar */
+.task-toolbar {
+  gap: 8px;
+}
+.task-search {
+  flex: 1 1 220px;
+  max-width: 300px;
+}
+.task-search > .input {
+  padding-right: 32px;
+}
+.task-search > .input::-webkit-search-cancel-button {
+  display: none;
+}
+.task-search > .kbd {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+}
+.task-filter {
+  width: auto;
+  flex: 0 1 180px;
+  min-width: 0;
+  height: 34px;
+  min-height: 34px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: var(--fs-sm);
+}
+.task-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  margin-top: -8px;
+}
+.task-filter-panel .task-filter {
+  flex: none;
+  width: 100%;
+}
+.task-filter-panel .seg {
+  display: flex;
+}
+.task-filter-panel .seg button {
+  flex: 1;
+  justify-content: center;
+}
+
+@media (max-width: 860px) {
+  .tasks-page {
+    gap: 20px;
+  }
+  .task-toolbar {
+    flex-wrap: nowrap;
+  }
+  .task-search {
+    max-width: none;
+    flex: 1 1 auto;
+  }
+  .task-filter-toggle {
+    flex: none;
+  }
+  .task-filter {
+    height: 44px;
+    min-height: 44px;
+  }
+}

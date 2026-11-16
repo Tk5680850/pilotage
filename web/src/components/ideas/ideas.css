@@ -1,0 +1,279 @@
+/* Possible projects (ScoutCards) + Ideas page sections. Tokens only; see docs/DESIGN.md. */
+.scout-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.scout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.scout-grid.compact {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.scout-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px 20px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+}
+.scout-card.compact {
+  padding: 14px 16px 12px;
+  gap: 8px;
+}
+.scout-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.scout-kind {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--violet) 14%, transparent);
+  color: var(--violet);
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.scout-kind.k-reusable {
+  background: color-mix(in srgb, var(--teal) 14%, transparent);
+  color: var(--teal);
+}
+.scout-kind.k-idea {
+  background: color-mix(in srgb, var(--blue) 14%, transparent);
+  color: var(--blue);
+}
+.scout-meta {
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.scout-meta > :first-child {
+  min-width: 0;
+  overflow: hidden;
+}
+.scout-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--text-2);
+  vertical-align: bottom;
+}
+a.scout-src:hover {
+  color: var(--text);
+}
+a.scout-src:hover .truncate {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-4);
+}
+.scout-unsure {
+  font-style: italic;
+}
+.scout-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  color: var(--text);
+}
+.scout-card.compact .scout-title {
+  font-size: var(--fs-base);
+}
+.scout-pitch {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: 1.5;
+}
+.scout-why {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.scout-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.scout-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-3);
+}
+.scout-evidence,
+.scout-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.scout-evidence li::marker,
+.scout-steps li::marker {
+  color: var(--text-4);
+}
+.scout-more-link {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  cursor: pointer;
+}
+.scout-more-link:hover {
+  color: var(--text);
+}
+.scout-fold > summary {
+  font-size: var(--fs-xs);
+}
+.scout-fold > .disclosure-body {
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.scout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.scout-card.compact .scout-actions {
+  padding-top: 10px;
+}
+.scout-actions > .btn.ghost {
+  padding: 0 8px;
+}
+.scout-more {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  height: 30px;
+  padding: 0 10px;
+  margin-left: -10px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.scout-more:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.scout-runs > .disclosure-body {
+  padding-top: 8px;
+}
+.scout-run-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 78ch;
+}
+.scout-empty-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.5;
+}
+.scout-empty-line > svg {
+  flex: none;
+  margin-top: 3px;
+}
+.scout-loading {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding-top: 24px;
+  padding-bottom: 28px;
+}
+
+/* From today's plan */
+.plan-ideas .plan-idea {
+  align-items: flex-start;
+}
+.plan-idea-text {
+  font-size: var(--fs-sm);
+  color: var(--text);
+  line-height: 1.55;
+}
+.plan-idea-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+@media (max-width: 860px) {
+  .scout-grid,
+  .scout-grid.compact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .scout-card {
+    padding: 16px;
+  }
+  .scout-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px;
+  }
+  .scout-actions > .btn:first-child {
+    grid-column: 1 / -1;
+  }
+  .scout-actions > .btn {
+    justify-content: center;
+  }
+  .scout-actions > .btn.ghost {
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+  .scout-more {
+    height: 40px;
+  }
+  .plan-idea {
+    flex-wrap: wrap;
+  }
+  .plan-idea-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .plan-idea-actions .btn {
+    justify-content: center;
+  }
+  .plan-idea-actions .btn.ghost {
+    box-shadow: inset 0 0 0 1px var(--border);
+  }
+}

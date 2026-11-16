@@ -1,0 +1,130 @@
+/* Projects overview. Tokens from styles.css only (see docs/DESIGN.md).
+   styles.css is injected after page CSS, so overrides of its classes need a higher specificity. */
+
+/* toolbar: search · lifecycle filter · layout toggle */
+.toolbar.pp-toolbar {
+  gap: 10px 12px;
+}
+.toolbar.pp-toolbar .pp-search {
+  flex: 1 1 280px;
+  max-width: 380px;
+}
+.pp-search .input {
+  padding-right: 40px;
+}
+.pp-search .input::-webkit-search-cancel-button {
+  display: none;
+}
+.pp-search > .kbd {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+}
+.pp-search > .pp-clear {
+  position: absolute;
+  right: 4px;
+}
+.pp-count {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  font-weight: 500;
+}
+.seg button.on .pp-count {
+  color: var(--text-2);
+}
+.pp-filters {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pp-catchup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: -12px;
+}
+
+/* workspace groups */
+.pp-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  min-width: 0;
+}
+.pp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.pp-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+}
+.pp-group-name h2 {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: color var(--dur-1);
+}
+.pp-group-name:hover h2 {
+  color: var(--accent-text);
+}
+.pp-group-count {
+  font-size: var(--fs-sm);
+}
+.pp-group-live {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.pp-elsewhere {
+  text-align: center;
+}
+.pp-elsewhere .more-link {
+  margin-top: 0;
+  color: var(--accent-text);
+}
+
+@media (max-width: 860px) {
+  .toolbar.pp-toolbar {
+    gap: 10px 8px;
+  }
+  .toolbar.pp-toolbar .pp-search {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .pp-search > .pp-clear {
+    right: 2px;
+  }
+  /* the filter scrolls sideways instead of wrapping onto two lines */
+  .pp-filters {
+    flex: 1 1 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: -2px 0;
+    padding: 2px 0;
+  }
+  .pp-filters::-webkit-scrollbar {
+    display: none;
+  }
+  .pp-filters .seg {
+    flex-wrap: nowrap;
+  }
+  .pp-toolbar > .toolbar-spacer {
+    display: none;
+  }
+  .pp-catchup {
+    margin-top: -8px;
+  }
+  .pp-groups {
+    gap: 28px;
+  }
+}
+
+/* Hidden filter: one quiet line, then the list */
+.pp-hidden-hint {
+  margin: 0;
+}

@@ -1,0 +1,18 @@
+/* Phone on plain http: one slim line above the page, not a modal. */
+.install-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2, var(--surface));
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  min-width: 0;
+}
+.install-hint > svg {
+  flex: none;
+  color: var(--accent);
+}

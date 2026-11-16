@@ -1,0 +1,151 @@
+/* Sessions list (pages/Sessions.tsx). Tokens only; see docs/DESIGN.md. */
+.toolbar.ss-toolbar .ss-search {
+  flex: 1 1 280px;
+  max-width: 400px;
+}
+.ss-search {
+  position: relative;
+}
+.ss-search .input {
+  padding-right: 34px;
+}
+.ss-search-spin {
+  position: absolute;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  pointer-events: none;
+}
+.select.ss-select {
+  width: 176px;
+  flex: none;
+}
+.ss-hint {
+  margin-top: -12px;
+  max-width: 72ch;
+}
+.ss-groups {
+  transition: opacity var(--dur-2);
+}
+.ss-groups.ss-stale {
+  opacity: 0.6;
+}
+.ss-more,
+.ss-end {
+  display: flex;
+  justify-content: center;
+}
+.ss-more {
+  margin-top: -8px;
+}
+/* "What the icons mean": a link after the subtitle, the legend card under the header */
+.ss-legend-link {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ss-legend-link:hover {
+  color: var(--text-2);
+}
+.ss-legend {
+  margin-top: 16px;
+}
+.ss-legend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -4px -6px 8px 0;
+}
+.ss-legend-title {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.ss-legend-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px 24px;
+  margin: 0;
+}
+.ss-legend-item {
+  min-width: 0;
+}
+.ss-legend-item dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  color: var(--text);
+}
+.ss-legend-item dd {
+  margin: 2px 0 0 22px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.45;
+}
+.ss-legend-ico {
+  width: 14px;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+}
+.ss-sheet-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ss-sheet-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-3);
+}
+.ss-sheet .select.ss-select {
+  width: 100%;
+}
+@media (max-width: 860px) {
+  .ss-filters {
+    display: flex;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ss-filters .ss-search {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .ss-filters .ss-filter-btn {
+    flex: none;
+  }
+  .ph-title-row > .ss-history {
+    margin-left: auto;
+  }
+  .ss-scroll {
+    overflow-x: auto;
+    margin: 0 -18px;
+    padding: 0 18px;
+    scrollbar-width: none;
+  }
+  .ss-scroll .seg.block {
+    min-width: max-content;
+    width: 100%;
+  }
+  .ss-scroll::-webkit-scrollbar {
+    display: none;
+  }
+  .ss-hint {
+    margin-top: -8px;
+  }
+  .ss-more .btn {
+    width: 100%;
+  }
+}

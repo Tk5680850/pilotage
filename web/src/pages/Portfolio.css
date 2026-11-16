@@ -1,0 +1,384 @@
+/* Portfolio & CV (+ components/portfolio/*). Tokens only; see docs/DESIGN.md. */
+
+.cv-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 296px;
+  gap: 28px;
+  align-items: start;
+}
+.cv-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.cv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.cv-rail {
+  position: sticky;
+  top: calc(var(--topbar-h) + 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.scard-like {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+.scard-like > .progress {
+  width: 100%;
+}
+.cv-rail-head {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.cv-tech {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.cv-tech li {
+  display: inline-flex;
+  gap: 5px;
+  white-space: nowrap;
+}
+/* .ph is a column flex container with flex-wrap: wrap; Chrome then measures .ph-row at min-content width
+   (title and actions on two lines) and keeps that height. No wrap = correct height. */
+.cv-ph {
+  flex-wrap: nowrap;
+}
+.nowrap {
+  white-space: nowrap;
+}
+
+/* ---------- entry ---------- */
+.cv-entry {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition:
+    border-color var(--dur-1),
+    opacity var(--dur-2);
+}
+.cv-main {
+  padding: 22px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  transition: opacity var(--dur-2);
+}
+.cv-entry.off .cv-main {
+  opacity: 0.6;
+}
+.cv-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.cv-glyph {
+  flex: none;
+  border-radius: var(--r-md);
+}
+.cv-titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.cv-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  flex-wrap: wrap;
+}
+.cv-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.35;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cv-period {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  white-space: nowrap;
+  flex: none;
+}
+.cv-role {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+.cv-tagline {
+  font-size: var(--fs-base);
+  color: var(--text-2);
+  line-height: 1.55;
+  max-width: 72ch;
+}
+.cv-bullets-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.cv-bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-width: 76ch;
+}
+.cv-bullets li {
+  position: relative;
+  padding-left: 16px;
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  color: var(--text);
+}
+.cv-bullets li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.68em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-4);
+}
+.cv-entry.draft .cv-bullets li {
+  color: var(--text-2);
+}
+.cv-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.cv-writing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+.cv-writing .spin {
+  color: var(--accent);
+  flex: none;
+}
+
+.cv-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  padding: 10px 14px 10px 24px;
+  border-top: 1px solid var(--border);
+}
+.cv-foot-info {
+  display: flex;
+  align-items: center;
+  gap: 6px 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.cv-prov {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  color: var(--text-2);
+}
+.cv-prov svg {
+  width: 13px;
+  height: 13px;
+  color: var(--text-3);
+}
+.cv-prov.draft,
+.cv-prov.empty,
+.cv-prov.brief {
+  color: var(--text-3);
+  font-weight: 500;
+}
+.cv-lang {
+  margin-left: 2px;
+  padding: 1px 5px;
+  border-radius: var(--r-xs);
+  background: var(--warn-soft);
+  color: var(--amber);
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+}
+.cv-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-3);
+}
+.cv-link:hover {
+  color: var(--text);
+}
+.cv-link svg {
+  width: 12px;
+  height: 12px;
+}
+.cv-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.cv-include {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 4px;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+/* ---------- sticky export bar ---------- */
+.cv-exportbar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+  box-shadow: var(--shadow-md);
+}
+.cv-exportbar-text {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.cv-exportbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* ---------- dialogs ---------- */
+.cv-edit-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+.cv-reset {
+  margin-right: auto;
+}
+.cv-export {
+  margin: 0;
+  max-height: 46vh;
+  overflow: auto;
+  padding: 16px 18px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+.cv-export-preview {
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  white-space: normal;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1100px) {
+  .cv-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cv-rail {
+    position: static;
+  }
+}
+@media (max-width: 860px) {
+  .cv-toolbar .input-wrap {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .cv-toolbar .toolbar-spacer {
+    display: none;
+  }
+  .cv-main {
+    padding: 18px 16px 14px;
+  }
+  .cv-head {
+    gap: 12px;
+  }
+  .cv-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .cv-foot {
+    padding: 8px 8px 8px 16px;
+  }
+  .cv-foot-actions {
+    width: 100%;
+    margin-left: -6px;
+  }
+  .cv-foot-actions .btn:last-child {
+    margin-left: auto;
+  }
+  .cv-exportbar {
+    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 10px);
+    padding: 8px 8px 8px 14px;
+  }
+  .cv-exportbar-text {
+    flex-direction: column;
+    gap: 0;
+  }
+}
+
+/* "Showing the N included entries not written yet" (rail filter) */
+.cv-filter-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}

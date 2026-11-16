@@ -1,0 +1,519 @@
+/* Home sections (HomeSections.tsx, TodayBits.tsx). Tokens from styles.css only. */
+
+/* one global "catching up" line */
+.catchup {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 7px 14px 7px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.4;
+}
+.catchup > svg {
+  flex: none;
+  color: var(--accent);
+}
+
+/* Codex / Gemini marker next to a session title (also used by the Sessions pages) */
+.harness-tag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* ---------------------------------------------------------------- header */
+.home-head .ph-sub {
+  margin-top: 8px;
+}
+.home-headline {
+  margin: 0;
+  font-size: var(--fs-md);
+  line-height: 1.55;
+  color: var(--text-2);
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.home-updated {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 7px;
+  margin-top: 8px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.home-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: none;
+  padding: 4px 4px;
+  margin: -4px -4px;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-weight: 500;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+.home-refresh:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.home-refresh:disabled {
+  color: var(--text-3);
+  cursor: default;
+}
+
+/* ---------------------------------------------------------------- shared row bits */
+.home-card {
+  overflow: hidden;
+}
+.home-proj {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 220px;
+}
+.home-proj .glyph {
+  flex: none;
+}
+.home-row .lrow-title > .t {
+  flex: 0 1 auto;
+}
+.home-empty {
+  padding: 14px 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* ---------------------------------------------------------------- needs you (amber) */
+.needs-card {
+  border-color: color-mix(in srgb, var(--amber) 40%, var(--border));
+  background: color-mix(in srgb, var(--amber) 4%, var(--surface));
+}
+.needs-row > .lrow-body {
+  gap: 4px;
+}
+.needs-q {
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text);
+}
+.needs-action {
+  flex: none;
+  align-self: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------------------------------------------------------------- today */
+.home-task {
+  position: relative;
+}
+.home-task + .home-task {
+  border-top: 1px solid var(--border);
+}
+.home-task > .lrow {
+  padding-right: 56px;
+}
+/* every row here is planned for today: the task rows' "Today" tag would only repeat the heading */
+.home-today .task-today {
+  display: none;
+}
+.home-task:hover > .lrow.clickable {
+  background: var(--hover);
+}
+.home-unplan {
+  position: absolute;
+  z-index: 1;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.home-unplan:active {
+  transform: translateY(-50%);
+}
+.home-none {
+  margin: 0;
+  padding-left: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+.home-props {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.home-props-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 2px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-3);
+}
+.home-props-label > svg {
+  width: 13px;
+  height: 13px;
+}
+/* proposals aren't commitments yet: a dashed frame, no fill */
+.prop-card {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  background: transparent;
+  box-shadow: none;
+}
+.prop-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px 14px 20px;
+  min-width: 0;
+}
+.prop-row + .prop-row {
+  border-top: 1px dashed var(--border-strong);
+}
+.prop-row > .glyph {
+  flex: none;
+  margin-top: 1px;
+}
+.prop-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.prop-title {
+  font-weight: 600;
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  color: var(--text);
+}
+.prop-why {
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.prop-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 6px;
+  min-width: 0;
+}
+.prop-foot > .meta {
+  flex: 1 1 140px;
+}
+.prop-foot .home-proj .glyph {
+  display: none; /* the row already leads with the project glyph */
+}
+.prop-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin-left: auto;
+}
+
+/* ---------------------------------------------------------------- working (one line per session) */
+.home-row.dense {
+  padding: 10px 20px;
+}
+.work-row {
+  align-items: center;
+}
+.work-line {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.work-t {
+  flex: 0 1 auto;
+  max-width: 55%;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 550;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  color: var(--text);
+}
+.work-meta {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.work-meta .home-proj {
+  flex: 0 1 auto;
+  max-width: 45%;
+}
+.work-dot {
+  flex: none;
+  color: var(--text-4);
+}
+.work-detail {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.work-ago {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.home-more {
+  justify-content: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  text-decoration: none;
+}
+.home-more > svg {
+  width: 14px;
+  height: 14px;
+}
+.home-idle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  padding: 0 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  text-decoration: none;
+  border-radius: var(--r-md);
+}
+.home-idle:hover {
+  color: var(--text-2);
+}
+.home-idle-go {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+.home-idle-go > svg {
+  width: 14px;
+  height: 14px;
+}
+.home-idle:hover .home-idle-go {
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------- pick up */
+.pick-row > .lrow-body {
+  gap: 3px;
+}
+.pick-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.pick-line > div {
+  min-width: 0;
+}
+.pick-line > svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin-top: 3px;
+  color: var(--accent);
+}
+.pick-line.is-next {
+  color: var(--text);
+}
+.pick-resume {
+  color: var(--text);
+}
+.pick-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  align-self: center;
+  position: relative;
+  z-index: 1;
+}
+.quiet-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-2);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- footer */
+.home-foot {
+  padding-top: 2px;
+}
+.home-foot .meta {
+  font-size: var(--fs-sm);
+}
+.home-foot-link {
+  color: var(--text-2);
+  text-decoration: none;
+}
+.home-foot-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- phone */
+@media (max-width: 860px) {
+  .catchup {
+    border-radius: var(--r-lg);
+    align-items: flex-start;
+  }
+  .catchup > svg {
+    margin-top: 2px;
+  }
+  .catchup-extra {
+    display: none;
+  }
+  .home-refresh {
+    padding: 11px 8px;
+    margin: -11px -8px;
+  }
+  .home-row.dense {
+    padding: 10px 16px;
+  }
+  /* Needs you: the one row type with a full-width "Open in Claude app" */
+  .needs-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 10px;
+  }
+  .needs-row > .lrow-body {
+    flex: 1 1 calc(100% - 40px);
+  }
+  .needs-action {
+    flex: 1 1 100%;
+    padding-left: 32px;
+  }
+  .needs-action .needs-open {
+    width: 100%;
+    height: 44px;
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .home-task > .lrow {
+    padding-right: 60px;
+  }
+  .home-unplan {
+    right: 10px;
+  }
+  .home-headline {
+    -webkit-line-clamp: 4;
+  }
+  /* proposals: the project glyph moves into the meta line so the three buttons fit on one row */
+  .prop-row {
+    padding: 14px 16px;
+  }
+  .prop-row > .glyph {
+    display: none;
+  }
+  .prop-foot .home-proj .glyph {
+    display: inline-grid;
+  }
+  .prop-actions {
+    width: 100%;
+    margin-left: 0;
+    gap: 6px;
+  }
+  .prop-actions > .btn {
+    padding: 0 11px;
+  }
+  .prop-actions > .btn:first-child {
+    flex: 1 1 auto;
+  }
+  /* Working: title on one line, project + detail under it */
+  .work-line {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1px;
+  }
+  .work-t {
+    max-width: 100%;
+  }
+  .work-meta {
+    flex: none;
+  }
+  .work-row > .work-ago {
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+  .home-idle {
+    min-height: 40px;
+  }
+  .pick-row {
+    padding-top: 11px;
+    padding-bottom: 11px;
+    padding-right: 8px;
+  }
+  .pick-row > .lrow-body {
+    gap: 2px;
+  }
+  .quiet-tag {
+    height: 17px;
+  }
+  .pick-actions {
+    align-self: flex-start;
+    margin-top: -8px;
+  }
+  .home-foot .meta {
+    row-gap: 0;
+  }
+  .home-foot-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+  }
+}

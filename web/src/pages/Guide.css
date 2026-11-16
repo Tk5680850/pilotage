@@ -1,0 +1,186 @@
+/* How Pilotage works (/guide). Tokens from styles.css only. */
+.gd-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gd-h {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+/* the five objects: icon tile · name + one line · where to find it */
+.gd-objects .list {
+  display: flex;
+  flex-direction: column;
+}
+.gd-obj {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 20px;
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--dur-1);
+}
+.gd-obj + .gd-obj {
+  border-top: 1px solid var(--border);
+}
+.gd-obj:hover {
+  background: var(--hover);
+}
+.gd-obj:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.gd-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.gd-ico svg {
+  width: 17px;
+  height: 17px;
+}
+.gd-obj-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 2px 16px;
+}
+.gd-obj-name {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+}
+.gd-obj-line {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.gd-obj-where {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.gd-obj:hover .gd-obj-where {
+  color: var(--text-2);
+}
+.gd-note {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  line-height: 1.5;
+  padding: 0 4px;
+}
+
+/* three short explainers side by side */
+.gd-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.gd-card {
+  display: flex;
+  flex-direction: column;
+}
+.gd-card .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gd-steps,
+.gd-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.gd-steps {
+  counter-reset: gd;
+}
+.gd-steps li {
+  counter-increment: gd;
+  position: relative;
+  padding-left: 28px;
+}
+.gd-steps li::before {
+  content: counter(gd);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-2xs);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.gd-list li {
+  position: relative;
+  padding-left: 14px;
+}
+.gd-list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-4);
+}
+.gd-steps b,
+.gd-list b {
+  color: var(--text);
+  font-weight: 600;
+}
+.gd-foot {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+@media (max-width: 1100px) {
+  .gd-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 860px) {
+  .gd-obj {
+    padding: 13px 16px;
+    align-items: flex-start;
+  }
+  .gd-obj-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gd-obj-where {
+    display: none;
+  }
+}

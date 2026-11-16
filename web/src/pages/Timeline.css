@@ -1,0 +1,567 @@
+/* Timeline page (pages/Timeline.tsx + components/timeline/*). Tokens only; see docs/DESIGN.md. */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- stats ---------- */
+.grid-stats.tl-stats {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+.tl-stats .stat .spark {
+  max-width: 120px;
+}
+
+/* ---------- layout: week + day on the left, trends on the right ---------- */
+.tl-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas:
+    'week rail'
+    'day rail';
+  gap: 24px 32px;
+  align-items: start;
+}
+.tl-a-week {
+  grid-area: week;
+  min-width: 0;
+}
+.tl-a-day {
+  grid-area: day;
+  min-width: 0;
+}
+.tl-a-rail {
+  grid-area: rail;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (max-width: 1100px) {
+  .tl-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'week' 'day' 'rail';
+  }
+}
+
+/* ---------- heatmap ---------- */
+.card.tl-year {
+  padding: 18px 20px 14px;
+}
+.tl-heat {
+  --gap: 3px;
+  --wd: 28px;
+  --cell: 14px;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+@supports (width: 1cqi) {
+  .tl-heat {
+    /* fill the card on wide screens (with a few px of slack for rounding); never smaller than 14px:
+       phones scroll sideways instead */
+    --cell: clamp(14px, calc((100cqi - var(--wd) - 16px - 52 * var(--gap)) / 53), 22px);
+  }
+}
+.tl-heat-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 3px;
+  margin: -3px;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+}
+.tl-heat-inner {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: max-content;
+}
+.tl-months-row {
+  display: flex;
+  gap: 8px;
+}
+.tl-months-gutter {
+  position: sticky;
+  left: -3px;
+  z-index: 1;
+  flex: none;
+  width: calc(var(--wd) + 3px);
+  margin-left: -3px;
+  background: var(--surface);
+  box-shadow: 8px 0 0 var(--surface);
+}
+.tl-months {
+  display: grid;
+  grid-template-columns: repeat(53, var(--cell));
+  column-gap: var(--gap);
+  height: 14px;
+  font-size: var(--fs-2xs);
+  line-height: 14px;
+  color: var(--text-3);
+}
+.tl-months span {
+  white-space: nowrap;
+}
+.tl-heat-body {
+  display: flex;
+  gap: 8px;
+}
+.tl-heat-body > .tl-wd {
+  box-shadow: 8px 0 0 var(--surface);
+}
+.tl-wd {
+  position: sticky;
+  left: -3px;
+  z-index: 1;
+  background: var(--surface);
+  display: grid;
+  grid-template-rows: repeat(7, var(--cell));
+  row-gap: var(--gap);
+  width: calc(var(--wd) + 3px);
+  margin-left: -3px;
+  padding-left: 3px;
+  flex: none;
+  font-size: var(--fs-2xs);
+  line-height: var(--cell);
+  color: var(--text-3);
+}
+.tl-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, var(--cell));
+  grid-auto-columns: var(--cell);
+  gap: var(--gap);
+}
+.tl-c {
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 3px;
+  border: 0;
+  padding: 0;
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: outline-color var(--dur-1);
+}
+.tl-c.l1 {
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface-3));
+}
+.tl-c.l2 {
+  background: color-mix(in srgb, var(--accent) 50%, var(--surface-3));
+}
+.tl-c.l3 {
+  background: color-mix(in srgb, var(--accent) 74%, var(--surface-3));
+}
+.tl-c.l4 {
+  background: var(--accent);
+}
+.tl-c.empty {
+  visibility: hidden;
+}
+button.tl-c:hover {
+  outline: 1px solid var(--border-strong);
+  outline-offset: 1px;
+}
+.tl-c.today:not(.sel) {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 45%, transparent);
+}
+.tl-c.sel,
+button.tl-c.sel:hover {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+.tl-heat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.tl-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--text-3);
+}
+.tl-legend .tl-c {
+  --cell: 11px;
+  cursor: default;
+}
+.tl-legend > span:first-child {
+  margin-right: 4px;
+}
+.tl-legend > span:last-child {
+  margin-left: 4px;
+}
+
+/* ---------- this week ---------- */
+.tl-week-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tl-week-lead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tl-week-num {
+  font-size: var(--fs-xl);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.tl-week-delta {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-3);
+}
+.tl-week-delta.up {
+  color: var(--green);
+}
+.tl-week-meta {
+  margin-bottom: 8px;
+}
+.tl-week-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -12px;
+}
+.tl-week-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  min-width: 0;
+  transition: background var(--dur-1);
+}
+a.tl-week-row:hover {
+  background: var(--hover);
+}
+.tl-week-row > .glyph {
+  margin-top: 1px;
+}
+.tl-week-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.tl-week-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.tl-week-name {
+  font-weight: 600;
+  font-size: var(--fs-base);
+  color: var(--text);
+}
+.tl-week-count {
+  flex: none;
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+.tl-week-bar,
+.tl-pbar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.tl-week-bar > span,
+.tl-pbar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ws);
+}
+.tl-week-what {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  line-height: 1.45;
+}
+
+/* ---------- day panel ---------- */
+.tl-day-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 0 20px;
+  flex-wrap: wrap;
+}
+.tl-day-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tl-day-title h2 {
+  font-size: var(--fs-md);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.tl-day-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.tl-split {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 20px 0;
+}
+.tl-split-bar,
+.tl-wsbar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-3);
+}
+.tl-split-bar > span,
+.tl-wsbar > span {
+  min-width: 3px;
+  flex-basis: 0;
+  background: var(--ws);
+}
+.tl-split-legend,
+.tl-wslegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.tl-split-item,
+.tl-wslegend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+a.tl-split-item:hover {
+  color: var(--text);
+}
+.tl-day-body {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.tl-entries {
+  display: flex;
+  flex-direction: column;
+}
+.tl-entry {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+.tl-entries > .tl-entry:first-child,
+.tl-day-skel > .tl-entry:first-child {
+  border-top: 0;
+}
+.tl-entry > .lrow {
+  border-top: 0;
+  padding-left: 4px;
+}
+.tl-time {
+  padding: 15px 0 0 20px;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.tl-skel-row {
+  padding: 14px 20px 14px 4px;
+}
+.tl-autos {
+  border-top: 1px solid var(--border);
+  padding: 6px 20px 8px;
+}
+.tl-autos > .disclosure > .disclosure-body,
+.tl-autos > .disclosure.disclosure > .disclosure-body {
+  padding: 0 0 4px;
+}
+.tl-auto-list {
+  margin: 0 -20px;
+}
+.tl-auto-list .lrow.dense {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.tl-auto-list .lrow-title {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+.tl-auto-proj {
+  flex: none;
+  max-width: 40%;
+  font-weight: 400;
+}
+
+/* ---------- rail ---------- */
+.tl-weeks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tl-weeks .bars {
+  gap: 6px;
+}
+.tl-weeks .bars > div:last-child {
+  opacity: 1;
+}
+.tl-weeks .bars > div:not(:last-child):not(.zero) {
+  opacity: 0.45;
+}
+.tl-weeks-labels {
+  display: flex;
+  gap: 6px;
+}
+.tl-weeks-labels span {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+  text-align: center;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  color: var(--text-3);
+}
+.tl-weeks-labels span.cur {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.tl-prows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tl-prow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.tl-prow-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.tl-prow-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  font-weight: 550;
+  color: var(--text);
+}
+a.tl-prow-name:hover {
+  color: var(--accent-text);
+}
+.tl-prow-count {
+  flex: none;
+}
+
+/* ---------- phone ---------- */
+@media (max-width: 860px) {
+  /* the day you tapped comes right after the heatmap; this week and the trends follow */
+  .tl-layout {
+    grid-template-areas: 'day' 'week' 'rail';
+  }
+  .tl-a-day {
+    scroll-margin-top: calc(var(--topbar-h) + env(safe-area-inset-top) + 12px);
+  }
+  .grid-stats.tl-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tl-stats > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .tl-stats .stat .spark {
+    display: none;
+  }
+  .card.tl-year {
+    padding: 14px 14px 12px;
+  }
+  .tl-heat {
+    --wd: 26px;
+  }
+  .tl-day-head {
+    padding: 14px 12px 0 16px;
+  }
+  .tl-split {
+    padding: 12px 16px 0;
+  }
+  .tl-entry {
+    grid-template-columns: 60px minmax(0, 1fr);
+  }
+  .tl-time {
+    padding: 16px 0 0 16px;
+  }
+  .tl-autos {
+    padding: 6px 16px 8px;
+  }
+  .tl-autos > .disclosure > summary {
+    min-height: 40px;
+  }
+  .tl-auto-list {
+    margin: 0 -16px;
+  }
+  .tl-auto-list .lrow.dense {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .tl-week-row {
+    min-height: 44px;
+  }
+}
+
+/* ---------- day panel: work that started on an earlier day ---------- */
+.tl-carried {
+  border-top: 1px solid var(--border);
+}
+.tl-carried-head {
+  padding: 12px 20px 2px;
+  font-size: var(--fs-xs);
+  font-weight: 550;
+  color: var(--text-3);
+}
+.tl-carried .tl-time {
+  white-space: normal;
+  line-height: 1.35;
+}
+.tl-carried .tl-entries > .tl-entry:first-child {
+  border-top: 0;
+}
+
+/* one footnote for the activity weighting, not repeated in every card */
+.tl-footnote {
+  margin-top: -8px;
+}
+@media (max-width: 860px) {
+  .tl-carried-head {
+    padding: 12px 16px 2px;
+  }
+}

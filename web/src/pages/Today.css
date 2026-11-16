@@ -1,0 +1,19 @@
+/* Home page layout: one readable column. Section styles live in components/today/today.css. Tokens only. */
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  min-width: 0;
+}
+.home > .callout,
+.home > .catchup {
+  margin-bottom: -4px;
+}
+@media (max-width: 860px) {
+  .home {
+    gap: 24px;
+  }
+}
