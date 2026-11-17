@@ -5,6 +5,7 @@ import http from 'node:http';
 import https from 'node:https';
 import { createServer as createTcpServer } from 'node:net';
 import fs from 'node:fs';
+import { execFile } from 'node:child_process';
 import path from 'node:path';
 import QRCode from 'qrcode';
 import { PORT, BIND, LAN_PORT, LAN_INTERNAL_PORT, WEB_DIST, VERSION, ensureDirs, HOME, paths, ROOT, IS_WSL, OS_NAME } from './config.js';
@@ -982,6 +983,73 @@ function every(ms, fn) {
   return t;
 }
 
+// WSL: Windows reaches Pilotage (browser on :PORT, phone forwarder on :LAN_INTERNAL_PORT) through WSL's localhost relay.
+// After sleep or a network change the relay can forget ports that were already open while new ones still work, and
+// Windows then gets "connection refused". So once a minute, ask Windows itself (curl.exe) and, after two misses in a
+// row, close and re-open both listeners: the relay picks them up again. Open connections are not dropped.
+const WIN_CURL = '/mnt/c/Windows/System32/curl.exe';
+function windowsReaches(port) {
+  return new Promise((resolve) =>
+    execFile(WIN_CURL, ['-s', '-o', 'NUL', '-m', '4', '-w', '%{http_code}', `http://127.0.0.1:${port}/healthz`], { timeout: 9000, cwd: '/mnt/c', windowsHide: true }, (err, out) => {
+      const code = String(out || '').trim();
+      resolve(!err && /^[1-5]\d\d$/.test(code));
+    }),
+  );
+}
+function relistenOne(srv, port, host) {
+  return new Promise((resolve) => {
+    const onErr = (e) => {
+      log.warn(`re-listen on ${host}:${port} failed: ${e.message}`);
+      resolve(false);
+    };
+    srv.once('error', onErr);
+    srv.close();
+    srv.listen(port, host, () => {
+      srv.off('error', onErr);
+      resolve(true);
+    });
+  });
+}
+let relayHeals = 0;
+async function healRelay(why) {
+  log.warn(`Windows can't reach Pilotage (${why}): re-opening the listeners so the WSL relay sees them again`);
+  await relistenOne(server, PORT, BIND);
+  await relistenOne(server2, LAN_INTERNAL_PORT, BIND);
+  relayHeals++;
+  const ok = (await windowsReaches(PORT)) && (await windowsReaches(LAN_INTERNAL_PORT));
+  log.info(`relay heal #${relayHeals}: ${ok ? 'Windows reaches Pilotage again' : 'still unreachable (will retry)'}`);
+  return ok;
+}
+function startRelayWatchdog() {
+  if (!IS_WSL || LAN_BIND || process.env.PILOTAGE_NO_FORWARDER === '1' || process.env.PILOTAGE_NO_RELAY_WATCH === '1' || !fs.existsSync(WIN_CURL)) return;
+  let misses = 0;
+  let busy = false;
+  const t = setInterval(async () => {
+    if (busy) return;
+    busy = true;
+    try {
+      const ok = (await windowsReaches(PORT)) && (await windowsReaches(LAN_INTERNAL_PORT));
+      misses = ok ? 0 : misses + 1;
+      if (misses >= 2 && (await healRelay('watchdog'))) misses = 0;
+    } catch (e) {
+      log.warn('relay watchdog', e.message);
+    } finally {
+      busy = false;
+    }
+  }, 60e3);
+  t.unref?.();
+}
+
+route(
+  'POST',
+  '/api/system/heal-relay',
+  async (req, res) => {
+    if (!IS_WSL) return json(res, { ok: true, skipped: 'not WSL' });
+    json(res, { ok: await healRelay('asked by the CLI') });
+  },
+  { localOnly: true },
+);
+
 async function start() {
   await new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -998,6 +1066,7 @@ async function start() {
   for (const s of [lanHttp, lanHttps]) s.emit('listening');
   if (LAN_BIND) log.info(`phone listener on ${LAN_BIND}:${LAN_PORT} (PILOTAGE_LAN_BIND), allowed from ${lanAllowList().join(', ')}`);
   refreshTls(true).catch((e) => log.warn('tls', e.message));
+  startRelayWatchdog();
   fs.writeFileSync(path.join(paths.logs, '..', 'pilotage.pid'), String(process.pid));
   log.info(`Pilotage ${VERSION} listening on http://${BIND}:${PORT} (data: ${paths.state})`);
   const t0 = Date.now();

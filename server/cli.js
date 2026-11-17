@@ -45,6 +45,10 @@ try {
   if (cmd === 'login-url') {
     const r = await api('/api/auth/login-code', { method: 'POST', body: {} });
     console.log(r.url);
+  } else if (cmd === 'heal-relay') {
+    // Windows lost Pilotage's ports in the WSL localhost relay: re-open the listeners now (the watchdog would in ~2 min).
+    const r = await api('/api/system/heal-relay', { method: 'POST', body: {} });
+    console.log(r.ok ? 'Windows reaches Pilotage again.' : 'Still unreachable from Windows.');
   } else if (cmd === 'rotate-key') {
     await api('/api/security/rotate-key', { method: 'POST', body: {} });
     console.log('Desktop key rotated. Old shortcuts and scripts that embedded it stop working.');
