@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Test, type-check, leak scan, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci
+
+      - name: Install web dependencies
+        run: npm ci --prefix web
+
+      # node:test suites: temp data dirs, fake home folders, spare ports, no AI, no forwarder.
+      - name: Server tests
+        run: npm test
+
+      - name: Type-check the web app
+        run: npm --prefix web run typecheck
+
+      # Generic checks only here: the private pattern list never leaves the maintainer's machine.
+      - name: Leak scan
+        run: npm run leak-scan
+
+      # `npm run build` would type-check again; the step above already did.
+      - name: Build the web app
+        working-directory: web
+        run: npx vite build

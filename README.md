@@ -3,6 +3,11 @@
 A local web cockpit for everything you build with Claude Code (and Codex or Gemini CLI): your projects, what is
 running right now, AI summaries of your sessions, and a task list that fills itself.
 
+[![CI](https://github.com/Ya-zid/pilotage/actions/workflows/ci.yml/badge.svg)](https://github.com/Ya-zid/pilotage/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node.js >= 22](https://img.shields.io/badge/node-%3E%3D22-339933.svg)](https://nodejs.org/)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 ![Pilotage: Home with running sessions, today's plan and pick-up list](docs/images/hero.png)
 
 Pilotage reads the session transcripts your coding agents already write on your computer, groups them by project,
@@ -10,7 +15,25 @@ and shows them in a web app you open on your PC or your phone. It never changes 
 
 > **Status: early.** I built it for my own daily workflow (WSL2 on Windows, Claude Code all day) and use it every
 > day. It works best on WSL2 + Windows; plain Linux and macOS work with a smaller feature set (see
-> [Platforms](#platforms)). Expect rough edges.
+> [Platforms](#platforms)). Expect rough edges, and please [report them](#contributing).
+
+## Contents
+
+- [What it does](#what-it-does)
+- [Quick start](#quick-start)
+- [Requirements](#requirements)
+- [Platforms](#platforms)
+- [Commands](#commands)
+- [How it works and privacy](#how-it-works-and-privacy)
+- [Configuration](#configuration)
+- [AI cost and usage](#ai-cost-and-usage)
+- [Phone access](#phone-access)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [Roadmap and help wanted](#roadmap-and-help-wanted)
+- [Security](#security)
+- [Not affiliated with Anthropic](#not-affiliated-with-anthropic)
+- [License](#license)
 
 ## What it does
 
@@ -37,30 +60,18 @@ sessions), and starting or resuming sessions from the browser.
   Tailscale). See [docs/PHONE.md](docs/PHONE.md).
 - **Live.** Pages update by themselves (server-sent events); you never press refresh.
 
-## How it works
+<details>
+<summary>More screenshots (fictional demo data)</summary>
 
-- A small Node server (no framework) on **127.0.0.1:4747**. It indexes transcripts **read-only**: `~/.claude`,
-  `~/.codex`, `~/.gemini`, your git repos (every git call uses `--no-optional-locks`, hooks off) and project folders
-  under your home folder.
-- A React web app (Vite) served by that server. Every page and API call needs a **paired device**.
-- Pilotage writes only to its own `data/` folder (state, caches, summaries, tokens), to new folders you explicitly
-  create with Spin off / New project, and, if you run `pilotage install` on WSL, to a Startup entry, a Desktop
-  shortcut and the phone forwarder in `%LOCALAPPDATA%\Pilotage`.
-- **Nothing leaves your computer except AI calls**, and those go to the provider you choose. By default that is your
-  own `claude -p` (your Claude subscription), run with no tools, no MCP servers and no session files, in an empty
-  sandbox folder. Common secret formats in prompts (API keys, tokens, private keys) are redacted before anything is
-  stored or sent; the project scout also leaves out any prompt that mentions a password. Passwords typed in plain
-  words elsewhere are not detected, so the summaries see what your sessions saw.
+| | |
+|---|---|
+| ![Sessions page](docs/images/sessions.png) | ![A project page with summary, next steps and details](docs/images/project.png) |
+| ![Tasks, Suggested tab](docs/images/tasks-suggested.png) | ![Ideas with possible projects from the scout](docs/images/ideas-possible-projects.png) |
+| ![Home on a phone](docs/images/phone-home.png) | ![Sessions on a phone](docs/images/phone-sessions.png) |
 
-## Requirements
+</details>
 
-- **Node.js 22+** (nvm works; `bin/pilotage` also looks in `~/.nvm`, or set `PILOTAGE_NODE`)
-- **Claude Code** installed and logged in (for the default AI provider and for starting sessions). Codex and Gemini
-  CLI are optional.
-- git, bash, curl
-- For the full feature set: **Windows 10/11 with WSL2** and Windows Terminal
-
-## Install
+## Quick start
 
 ```bash
 git clone https://github.com/Ya-zid/pilotage.git ~/pilotage
@@ -73,7 +84,7 @@ bin/pilotage open       # opens it in your browser with a one-time login link
 ```
 
 The first start indexes your existing sessions (a few seconds to a minute) and then summarizes recent work in the
-background, within the AI limits below.
+background, within the [AI limits](#ai-cost-and-usage).
 
 On **WSL2 + Windows**, also run:
 
@@ -81,7 +92,33 @@ On **WSL2 + Windows**, also run:
 bin/pilotage install    # `pilotage` on your PATH, autostart at Windows login, a Desktop shortcut
 ```
 
+On Linux and macOS, `bin/pilotage install` only links the `pilotage` command into `~/.local/bin`.
+
 For the **phone**, follow [docs/PHONE.md](docs/PHONE.md) (Settings → Phone & security, then pair with a QR code).
+
+## Requirements
+
+- **Node.js 22+** (nvm works; `bin/pilotage` also looks in `~/.nvm`, or set `PILOTAGE_NODE`)
+- **Claude Code** installed and logged in (for the default AI provider and for starting sessions). Codex and Gemini
+  CLI are optional.
+- git, bash, curl
+- openssl, for HTTPS on the phone (plain HTTP works without it)
+- For the full feature set: **Windows 10/11 with WSL2** and Windows Terminal
+
+## Platforms
+
+| | WSL2 + Windows | Linux / macOS |
+|---|---|---|
+| Sessions, projects, tasks, summaries, scout, history | yes | yes |
+| Start a session from the browser | Windows Terminal tab or background | background (`claude --bg`); attach with `claude attach <id>` |
+| Codex / Gemini sessions | read + start in a terminal tab | read (start them yourself) |
+| Open in VS Code / folder | yes | `code` / `xdg-open` (`open` on macOS) when available |
+| Windows-side Claude Code history | yes | n/a |
+| Phone access | Windows forwarder + firewall rule | direct bind with `PILOTAGE_LAN_BIND`, see [docs/PHONE.md](docs/PHONE.md#linux-and-macos) |
+| `pilotage install` (autostart, Desktop shortcut) | yes | links the `pilotage` command only |
+
+Native Windows without WSL is not supported. Most of the daily testing happens on WSL2; reports from Linux and macOS
+are very welcome (see [Contributing](#contributing)).
 
 ## Commands
 
@@ -99,6 +136,25 @@ pilotage uninstall    # remove autostart, shortcut, forwarder, command, firewall
 
 Before `pilotage install`, use `bin/pilotage` from the clone.
 
+## How it works and privacy
+
+- A small Node server (no framework) on **127.0.0.1:4747**. It indexes transcripts **read-only**: `~/.claude`,
+  `~/.codex`, `~/.gemini`, your git repos (every git call uses `--no-optional-locks`, hooks off) and project folders
+  under your home folder.
+- A React web app (Vite) served by that server. Every page and API call needs a **paired device**.
+- Pilotage writes only to its own `data/` folder (state, caches, summaries, tokens), to new folders you explicitly
+  create with Spin off / New project, and, if you run `pilotage install` on WSL, to a Startup entry, a Desktop
+  shortcut and the phone forwarder in `%LOCALAPPDATA%\Pilotage`.
+- **Nothing leaves your computer except AI calls**, and those go to the provider you choose. By default that is your
+  own `claude -p` (your Claude subscription), run with no tools, no MCP servers and no session files, in an empty
+  sandbox folder. Common secret formats in prompts (API keys, tokens, private keys) are redacted before anything is
+  stored or sent; the project scout also leaves out any prompt that mentions a password. Passwords typed in plain
+  words elsewhere are not detected, so the summaries see what your sessions saw.
+- Pilotage listens on 127.0.0.1 only, every request needs a paired device (or the CLI's key), pairing codes are
+  one-time, and PC-only actions are refused from phones. Details and the threat model: [SECURITY.md](SECURITY.md).
+
+For contributors, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) shows how requests and data flow through the code.
+
 ## Configuration
 
 Almost everything is in **Settings** (saved in `data/state.json`): your name (used in the greeting and in what the AI
@@ -111,13 +167,18 @@ Environment variables:
 |---|---|---|
 | `PILOTAGE_PORT` | `4747` | Port for the PC browser and the CLI |
 | `PILOTAGE_LAN_INTERNAL_PORT` | `PORT - 1` | Loopback port the phone forwarder targets |
-| `PILOTAGE_LAN_PORT` | `4748` | Port phones connect to (the forwarder on Windows) |
+| `PILOTAGE_LAN_PORT` | `4748` | Port phones connect to (the forwarder on Windows, or the direct bind) |
+| `PILOTAGE_LAN_BIND` | unset | Linux/macOS: address the phone listener binds directly (e.g. `0.0.0.0`). Unset = no phone access outside WSL |
+| `PILOTAGE_LAN_ALLOW` | `lan,vpn` | With `PILOTAGE_LAN_BIND`: who may connect (`lan`, `vpn`, IPv4 CIDRs, comma-separated) |
 | `PILOTAGE_DATA` | `./data` | Where state, caches, summaries and tokens live |
 | `PILOTAGE_NO_AI` | unset | `1` = never call an AI provider |
 | `PILOTAGE_NO_FORWARDER` | unset | `1` = don't start the Windows phone forwarder |
+| `PILOTAGE_NO_RELAY_WATCH` | unset | `1` = WSL: don't re-open the listeners when Windows loses its connection to them |
 | `PILOTAGE_WSL` | detected | `0` / `1` to force the platform detection |
 | `PILOTAGE_WIN_HOME` | detected | Your Windows profile seen from WSL (`/mnt/c/Users/<you>`) |
+| `PILOTAGE_OPENSSL` | `openssl` | The openssl binary used to create the phone HTTPS certificates |
 | `PILOTAGE_NODE` | detected | Node.js binary for `bin/pilotage` |
+| `CODEX_HOME` | `~/.codex` | Codex CLI's own setting; Pilotage reads Codex sessions from there |
 
 Workspaces are the top-level folders under your home (`~/acme/api` and `~/acme/web` are both in "acme"). Rename
 them in Settings. To fold one top folder into another workspace, add `"workspaces": {"acme-old": {"mergeInto":
@@ -161,23 +222,15 @@ print((data.get("model") or {}).get("display_name", ""))
 
 </details>
 
-## Platforms
+## Phone access
 
-| | WSL2 + Windows | Linux / macOS |
-|---|---|---|
-| Sessions, projects, tasks, summaries, scout, history | yes | yes |
-| Start a session from the browser | Windows Terminal tab or background | background (`claude --bg`); attach with `claude attach <id>` |
-| Codex / Gemini sessions | read + start in a terminal tab | read (start them yourself) |
-| Open in VS Code / folder | yes | `code` / `xdg-open` (`open` on macOS) when available |
-| Windows-side Claude Code history | yes | n/a |
-| Phone access | Windows forwarder + firewall rule | see [docs/PHONE.md](docs/PHONE.md) |
-| `pilotage install` (autostart, Desktop shortcut) | yes | links the `pilotage` command only |
+Pair a phone from **Settings → Devices → Pair a phone** (or `pilotage pair`) and use Pilotage over your home Wi-Fi or
+a VPN (NetBird, Tailscale). Nothing is reachable from the internet. On WSL2, a small forwarder on Windows lets phones
+in, only from your trusted Wi-Fi and VPN ranges; on Linux and macOS you turn on a direct bind with
+`PILOTAGE_LAN_BIND`. Pilotage can also serve HTTPS so the phone can install it as an app.
 
-## Privacy and security
-
-Pilotage listens on 127.0.0.1 only, every request needs a paired device (or the CLI's key), pairing codes are
-one-time, PC-only actions are refused from phones, and it never writes to your projects or `~/.claude`. Details and
-the threat model: [SECURITY.md](SECURITY.md).
+The full guide (pairing, HTTPS certificate on Android and iPhone, Linux/macOS setup, security notes):
+[docs/PHONE.md](docs/PHONE.md).
 
 ## FAQ
 
@@ -195,29 +248,58 @@ background. Later runs only look at what changed.
 
 **Can I run it on a server?** It is built for one person on their own computer. It binds to 127.0.0.1 on purpose.
 
-## Development
+**Can I try it without my own data?** Yes: `scripts/demo/run-demo.sh` builds a fictional world (projects, sessions,
+summaries, tasks) and starts Pilotage on it, with no AI calls and without touching your real Pilotage. See
+[CONTRIBUTING.md](CONTRIBUTING.md#try-the-demo-world).
+
+## Contributing
+
+Contributions are welcome: bug reports, tests on Linux and macOS, documentation, fixes and features.
+
+- Start with [CONTRIBUTING.md](CONTRIBUTING.md): setup, where things live, checks to run, and the ground rules
+  (read-only toward your projects and agent folders, security stays tight, no personal data).
+- Looking for something to do? Try a
+  [good first issue](https://github.com/Ya-zid/pilotage/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+- Questions and ideas: [Discussions](https://github.com/Ya-zid/pilotage/discussions). Bugs and feature requests:
+  [Issues](https://github.com/Ya-zid/pilotage/issues).
+- How the code fits together: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ```bash
-npm test                          # node:test suites; a temp data dir, no AI, no forwarder
+npm test                          # server tests (node:test): temp data dirs, no AI, no forwarder
 cd web && npx tsc --noEmit -p .   # type-check the web app
-PILOTAGE_DATA=/tmp/pl PILOTAGE_PORT=4799 PILOTAGE_NO_AI=1 PILOTAGE_NO_FORWARDER=1 node server/index.js
+npm run leak-scan                 # no personal data or secrets in what you commit
 ```
 
-```
-server/        Node server. index.js = routes, auth, loops; routes/*.js = feature modules
-  sources/     sessions.js (transcript indexer), harness/ (Codex, Gemini), projects.js, git.js, live.js
-  ai/          engine.js (blocks, summaries, today's plan, CV), scout.js, providers.js, runner.js, usage.js
-  work/        task extraction + store, spin-offs
-  launch.js    terminal / background launches;  net.js  phone access
-web/           React app (Vite); `pilotage build` after changes
-docs/          design system, API contracts, phone setup
-windows/       the phone forwarder (runs on Windows), icon
-bin/pilotage   the CLI
-tests/         npm test
-```
+This project follows a [Code of Conduct](CODE_OF_CONDUCT.md). It is a side project with one maintainer, so replies
+may take a while. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome; it is a side project, so replies may
-take a while.
+## Roadmap and help wanted
+
+Directions where help is most useful, based on what the code does not do yet:
+
+- **Linux and macOS parity.** Starting a session in a terminal (today it falls back to `claude --bg`, and Codex or
+  Gemini sessions can't be started at all outside WSL), and autostart at login (`pilotage install` only links the
+  command). See `server/launch.js` and `bin/pilotage`.
+- **Testing on real machines.** The maintainer works on WSL2. Install reports from Linux and macOS (what worked, what
+  didn't) help most, including phone HTTPS with macOS's own `openssl`.
+- **Phone access.** IPv6 peers and IPv6 ranges in `PILOTAGE_LAN_ALLOW` are not supported yet (`server/net.js`).
+- **More session sources.** Codex and Gemini are adapters in `server/sources/harness/`; other coding agents could
+  follow the same shape (`harness/common.js` describes it).
+- **Tests.** The web app has no automated tests yet.
+
+Before starting on one of these, open an issue or a discussion so we can agree on the shape.
+
+## Security
+
+Please report vulnerabilities privately through
+[GitHub's private vulnerability reporting](https://github.com/Ya-zid/pilotage/security/advisories/new), not in a
+public issue. The threat model and how authentication works: [SECURITY.md](SECURITY.md).
+
+## Not affiliated with Anthropic
+
+Pilotage is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Anthropic,
+OpenAI or Google. Claude and Claude Code are products of Anthropic; Codex is a product of OpenAI; Gemini CLI is a
+product of Google. Pilotage reads the files these tools write on your computer and runs their command-line tools.
 
 ## License
 

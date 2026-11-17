@@ -1,0 +1,108 @@
+name: Bug report
+description: Something in Pilotage doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Before you start:
+        - **Security problem?** Don't open a public issue. Use [private vulnerability reporting](https://github.com/Ya-zid/pilotage/security/advisories/new) instead (see SECURITY.md).
+        - **Search first:** someone may have reported it already.
+        - **This issue is public.** Leave out real names, client names, folder paths, IP addresses, session text and tokens. Fictional placeholders are fine (`/home/alex/acme`, `192.168.1.20`).
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw. A screenshot helps for UI problems (blur or crop anything personal).
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shortest list of steps that shows the problem.
+      placeholder: |
+        1. Open Settings → Phone & security
+        2. Press "Pair a phone"
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Where the Pilotage server runs.
+      options:
+        - WSL2 on Windows
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phone
+    attributes:
+      label: Is a phone involved?
+      options:
+        - "No, it happens on the PC"
+        - "Yes, Android (Chrome)"
+        - "Yes, iPhone or iPad (Safari)"
+        - "Yes, other phone or browser"
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node.js version
+      description: Output of `node -v`.
+      placeholder: v22.x.y
+    validations:
+      required: true
+
+  - type: input
+    id: pilotage-version
+    attributes:
+      label: Pilotage version or commit
+      description: The version in `package.json`, or the output of `git rev-parse --short HEAD` in your clone.
+      placeholder: 0.1.0 or a1b2c3d
+    validations:
+      required: true
+
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`. Add Codex or Gemini CLI versions if the bug is about their sessions.
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant lines from data/logs/server.log
+      description: |
+        `pilotage logs` shows the end of this file. Paste only the lines around the problem.
+        **Before you paste, remove names, folder paths, project names, IP addresses, prompts and anything that looks like a token or key.**
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Browser and version, AI provider (Settings → AI), whether it worked before, ideas about the cause.
+    validations:
+      required: false

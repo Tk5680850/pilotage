@@ -12,7 +12,7 @@ import { PORT, BIND, LAN_PORT, LAN_INTERNAL_PORT, WEB_DIST, VERSION, ensureDirs,
 import { getStore } from './store.js';
 import { userName, detectedName } from './profile.js';
 import { importLocalWorkspaces } from './workspaces.js';
-import { getSecrets, authenticate, deviceCookie, hostAllowed, authBlocked, authFailed } from './auth.js';
+import { getSecrets, authenticate, deviceCookie, hostAllowed, authBlocked, authFailed, parseCookies } from './auth.js';
 import { getSessionIndex } from './sources/sessions.js';
 import { ProjectRegistry } from './sources/projects.js';
 import { getLive } from './sources/live.js';
@@ -173,6 +173,47 @@ h1{font-size:22px;margin:0 0 8px}p{margin:8px 0;opacity:.85}code{background:rgba
 const NOT_PAIRED = `<p>This device isn't paired yet.</p>
 <p><b>On your PC:</b> open Pilotage (Desktop shortcut, or run <code>pilotage open</code>), go to <b>Settings → Devices</b> and press <b>Pair a phone</b>. Then scan the QR code with this device.</p>`;
 
+// Phones opening Pilotage from the home screen or another app sometimes send the first request without the device
+// cookie, then send it on a reload ("not paired" until a refresh). So the "not paired" page checks once more from inside
+// the page (a same-origin request carries the cookie) and reloads into the app when this device is in fact paired.
+// Served without sign-in like the icons: it holds no data, and /api/bootstrap still needs the cookie.
+const PAIR_RECHECK_JS = `(async () => {
+  const KEY = 'pilotage-pair-recheck';
+  let n = 0;
+  try {
+    const v = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+    if (v && Date.now() - v.at < 60000) n = v.n;
+  } catch {}
+  if (n >= 2) return; // reloaded twice within a minute already: this device really isn't paired
+  for (const wait of [0, 800, 2500]) {
+    await new Promise((r) => setTimeout(r, wait));
+    try {
+      const r = await fetch('/api/bootstrap?recheck=1', { credentials: 'same-origin', cache: 'no-store' });
+      if (r.ok) {
+        try { sessionStorage.setItem(KEY, JSON.stringify({ n: n + 1, at: Date.now() })); } catch {}
+        location.replace(location.pathname.startsWith('/auth/') ? '/' : location.href);
+        return;
+      }
+    } catch {}
+  }
+})();
+`;
+const NOT_PAIRED_PAGE = NOT_PAIRED + '<script src="/pair-recheck.js"></script>';
+
+// One log line per "not paired" answer (at most one every 10 s), never a cookie value: whether a device cookie came at
+// all and how the browser labelled the request. Tells a browser quirk apart from a pairing that is really gone.
+let notPairedLogAt = 0;
+function noteNotPaired(req, where) {
+  const now = Date.now();
+  if (now - notPairedLogAt < 10_000) return;
+  notPairedLogAt = now;
+  const h = req.headers;
+  const c = parseCookies(h.cookie || '');
+  const cookie = 'pl_dev' in c ? 'device cookie not known here (removed device or other data folder)' : h.cookie ? 'other cookies only' : 'no cookie';
+  const extra = (h['sec-purpose'] ? ` purpose=${clip(String(h['sec-purpose']), 40)}` : '') + (h['service-worker-navigation-preload'] ? ' sw-preload' : '');
+  log.info(`not paired (${where}): ${req.viaLan ? 'phone port' : 'PC port'} ${req.socket?.encrypted ? 'https' : 'http'}, ${cookie}; fetch-site=${h['sec-fetch-site'] || '-'} mode=${h['sec-fetch-mode'] || '-'}${extra}`);
+}
+
 // ---------------------------------------------------------------- routes
 const routes = [];
 // opts.localOnly: refuse when the request came through the phone/LAN listener (pairing, devices, firewall, keys).
@@ -189,7 +230,8 @@ function webBuild() {
   return buildMemo.id;
 }
 
-route('GET', '/api/bootstrap', async (req, res, { dev }) => {
+route('GET', '/api/bootstrap', async (req, res, { dev, url }) => {
+  if (url.searchParams.get('recheck') === '1') log.info(`not-paired page: re-check found ${dev.name} paired, reloading into the app`);
   // Re-issue the device cookie with today's attributes (older ones were SameSite=Strict), so paired devices migrate.
   const raw = /(?:^|;\s*)pl_dev=([^;]+)/.exec(req.headers.cookie || '');
   if (raw && dev?.id && dev.id !== 'cli') res.setHeader('Set-Cookie', deviceCookie(decodeURIComponent(raw[1])));
@@ -770,6 +812,7 @@ async function handle(req, res) {
     if (!der) return fail(res, 503, 'The Pilotage certificate is not ready yet');
     return send(res, 200, der, { 'Content-Type': 'application/x-x509-ca-cert', 'Content-Disposition': 'attachment; filename="pilotage-ca.crt"', 'Content-Length': String(der.length) });
   }
+  if (pathname === '/pair-recheck.js' && (req.method === 'GET' || req.method === 'HEAD')) return send(res, 200, PAIR_RECHECK_JS, { 'Content-Type': 'text/javascript; charset=utf-8' });
 
   if (pathname === '/auth/desktop') {
     // The master key never travels in URLs any more: `pilotage open` mints a one-time code instead.
@@ -795,7 +838,8 @@ async function handle(req, res) {
       return send(res, 302, '', { Location: kind === 'desktop' ? '/' : '/?paired=1', 'Set-Cookie': deviceCookie(token) });
     }
     authFailed(bucket);
-    return html(403, '<p>This code is expired or was already used.</p>' + NOT_PAIRED);
+    noteNotPaired(req, 'pairing link');
+    return html(403, '<p>This code is expired or was already used.</p>' + NOT_PAIRED_PAGE);
   }
 
   if (pathname.startsWith('/api/')) {
@@ -806,7 +850,10 @@ async function handle(req, res) {
       if (viaLan || cliKey.length !== secrets.desktopKey.length || hash(cliKey, 64) !== hash(secrets.desktopKey, 64)) return fail(res, 401, 'Bad key');
       dev = { id: 'cli', name: 'pilotage CLI' };
     } else dev = authenticate(req);
-    if (!dev) return fail(res, 401, 'Not paired');
+    if (!dev) {
+      noteNotPaired(req, 'api');
+      return fail(res, 401, 'Not paired');
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       // CSRF: custom header + JSON only (cross-site pages cannot send these without CORS, which we never grant)
       if (req.headers['x-pilotage'] !== '1') return fail(res, 403, 'Missing X-Pilotage header');
@@ -837,7 +884,10 @@ async function handle(req, res) {
   const isAsset = /^\/(assets\/|icon|favicon|manifest|apple-touch)/.test(pathname);
   if (isAsset && serveStatic(req, res, pathname)) return;
   const dev = authenticate(req);
-  if (!dev) return send(res, 401, pairPage(NOT_PAIRED), { 'Content-Type': 'text/html; charset=utf-8' });
+  if (!dev) {
+    noteNotPaired(req, 'page');
+    return html(401, NOT_PAIRED_PAGE);
+  }
   if (pathname !== '/' && serveStatic(req, res, pathname)) return;
   if (!fs.existsSync(path.join(WEB_DIST, 'index.html'))) return send(res, 503, pairPage('<p>The web app is not built yet. Run <code>pilotage build</code>.</p>'), { 'Content-Type': 'text/html; charset=utf-8' });
   serveStatic(req, res, '/index.html');

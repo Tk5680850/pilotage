@@ -10,6 +10,10 @@ package.json	"homepage": "https://github\.com/Ya-zid/pilotage#readme"
 package.json	"bugs": \{ "url": "https://github\.com/Ya-zid/pilotage/issues" \}
 SECURITY.md	github\.com/Ya-zid/pilotage/security
 CONTRIBUTING.md	github\.com/Ya-zid/pilotage/issues
+CONTRIBUTING.md	github\.com/Ya-zid/pilotage/discussions
+CHANGELOG.md	^\[(Unreleased|[0-9.]+)\]: https://github\.com/Ya-zid/pilotage/(compare|releases/tag)/
+CODE_OF_CONDUCT.md	\[Ya-zid on GitHub\]\(https://github\.com/Ya-zid\)
+.github/ISSUE_TEMPLATE/*	github\.com/Ya-zid/pilotage/(discussions|security/advisories/new)
 
 # Fake credentials that the redaction tests feed in on purpose
 tests/unit.test.js	const cases = \['DB_PASSWORD=hunter2secret'

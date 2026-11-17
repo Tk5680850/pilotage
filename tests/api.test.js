@@ -9,6 +9,11 @@ import http from 'node:http';
 
 const PORT = 4851 + 2 * Math.floor(Math.random() * 40); // LAN listener uses PORT - 1
 const DATA = fs.mkdtempSync(path.join(os.tmpdir(), 'pilotage-api-'));
+// A fake home with one project, so the server never scans (or depends on) the real home folder or Windows profile.
+const FAKE_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'pilotage-api-home-'));
+fs.mkdirSync(path.join(FAKE_HOME, 'acme', 'shop'), { recursive: true });
+fs.writeFileSync(path.join(FAKE_HOME, 'acme', 'shop', 'CLAUDE.md'), '# Shop\n');
+const FAKE_WIN_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'pilotage-api-winhome-'));
 let proc;
 let cookie = '';
 let key = '';
@@ -27,7 +32,7 @@ async function waitUp() {
 }
 
 before(async () => {
-  proc = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PILOTAGE_DATA: DATA, PILOTAGE_PORT: String(PORT), PILOTAGE_LAN_INTERNAL_PORT: String(PORT - 1), PILOTAGE_NO_AI: '1', PILOTAGE_NO_FORWARDER: '1' }, stdio: 'ignore' });
+  proc = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, HOME: FAKE_HOME, PILOTAGE_WIN_HOME: FAKE_WIN_HOME, PILOTAGE_DATA: DATA, PILOTAGE_PORT: String(PORT), PILOTAGE_LAN_INTERNAL_PORT: String(PORT - 1), PILOTAGE_NO_AI: '1', PILOTAGE_NO_FORWARDER: '1' }, stdio: 'ignore' });
   await waitUp();
   key = JSON.parse(fs.readFileSync(path.join(DATA, 'secrets.json'), 'utf8')).desktopKey;
   const lc = await fetch(`${base}/api/auth/login-code`, { method: 'POST', headers: { 'X-Pilotage-Key': key, 'X-Pilotage': '1', 'Content-Type': 'application/json' }, body: '{}' });
@@ -46,9 +51,24 @@ test('unauthenticated requests are refused', async () => {
   assert.equal((await fetch(`${base}/api/overview`)).status, 401);
   const page = await fetch(`${base}/`);
   assert.equal(page.status, 401);
-  assert.match(await page.text(), /isn't paired/);
+  const body = await page.text();
+  assert.match(body, /isn't paired/);
+  // The page re-checks by itself (a phone may leave the cookie off the first request) via a public, data-free script.
+  assert.match(body, /<script src="\/pair-recheck\.js"><\/script>/);
+  const js = await fetch(`${base}/pair-recheck.js`);
+  assert.equal(js.status, 200);
+  assert.match(js.headers.get('content-type'), /javascript/);
+  assert.match(await js.text(), /\/api\/bootstrap\?recheck=1/);
+  assert.equal((await fetch(`${base}/api/bootstrap?recheck=1`)).status, 401);
   assert.equal((await fetch(`${base}/auth/desktop?k=wrong`, { redirect: 'manual' })).status, 410);
   assert.equal((await fetch(`${base}/auth/pair?c=wrong`, { redirect: 'manual' })).status, 403);
+});
+
+test('not-paired re-check: a paired device gets bootstrap, so the page reloads into the app', async () => {
+  const r = await get('/api/bootstrap?recheck=1');
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get('set-cookie') || '', /SameSite=Lax/);
+  assert.equal((await get('/')).status, 200);
 });
 
 test('DNS rebinding and CSRF protections', async () => {
@@ -98,7 +118,7 @@ test('docs endpoint only serves listed documents', async () => {
   assert.ok(p, 'projects discovered');
   const r = await get(`/api/projects/${p.id}/doc?path=${encodeURIComponent('/etc/passwd')}`);
   assert.equal(r.status, 403);
-  const r2 = await get(`/api/projects/${p.id}/doc?path=${encodeURIComponent(path.join(os.homedir(), '.claude/.credentials.json'))}`);
+  const r2 = await get(`/api/projects/${p.id}/doc?path=${encodeURIComponent(path.join(FAKE_HOME, '.claude/.credentials.json'))}`);
   assert.equal(r2.status, 403);
 });
 

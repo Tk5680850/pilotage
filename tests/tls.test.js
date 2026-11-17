@@ -53,9 +53,12 @@ function request({ proto = 'http', port = LAN, path: p = '/', method = 'GET', he
   });
 }
 
+// Never scan the real home folder or Windows profile: the server only needs to come up with https here.
+const FAKE_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'pilotage-tls-home-'));
+
 before(async () => {
   proc = spawn(process.execPath, ['server/index.js'], {
-    env: { ...process.env, PILOTAGE_DATA: SRV_DATA, PILOTAGE_PORT: String(PORT), PILOTAGE_LAN_INTERNAL_PORT: String(LAN), PILOTAGE_NO_AI: '1', PILOTAGE_NO_FORWARDER: '1', PILOTAGE_LAN_BIND: '' },
+    env: { ...process.env, HOME: FAKE_HOME, PILOTAGE_WIN_HOME: FAKE_HOME, PILOTAGE_DATA: SRV_DATA, PILOTAGE_PORT: String(PORT), PILOTAGE_LAN_INTERNAL_PORT: String(LAN), PILOTAGE_NO_AI: '1', PILOTAGE_NO_FORWARDER: '1', PILOTAGE_LAN_BIND: '' },
     stdio: 'ignore',
   });
   // up, and the certificate made (it's created right after the listeners start)
